@@ -1,6 +1,6 @@
-## New in v0.5.3 — Adaptive light and dark interface
+## New in v0.5.3 — Light and Dark appearance
 
-Use the **top-right app menu → Settings → Appearance** to select **System, Light or Dark**. The app has native Streamlit theme presets for both modes, chart colors legible in both, and theme-aware custom cards. See [UI guide](UI_GUIDE.md).
+The app supports two native Streamlit visual themes. Use **⋮ → Settings → Appearance** to select **System**, **Light** or **Dark**; see [UI_GUIDE.md](UI_GUIDE.md) and [release notes](RELEASE_NOTES_v0.5.3.md). The old fixed dark-only CSS has been replaced with palette-aware custom components and chart styling.
 
 # PEIMS — Project Engineering Intelligence & Management System
 
@@ -95,3 +95,7 @@ The weekly S-curve contains historical reported points **only**; no future forec
 ## Professional interface refresh (v0.5.2)
 
 The public Streamlit front end now uses sidebar workspace navigation instead of nine compressed horizontal tabs. A structured project header, exception indicators, more consistent KPIs/chart containers, a compact-view preference, and responsive styles improve review and navigation. Select a section in the sidebar to render its content. This is a **presentation update**; analytical methods, data sources, and the enterprise API are unchanged. See [UI_GUIDE.md](UI_GUIDE.md) and [RELEASE_NOTES_v0.5.2.md](RELEASE_NOTES_v0.5.2.md).
+
+## v0.5.4 interface polish
+
+The project header now distinguishes actual and baseline with a target marker, while the Command centre has responsive Quick Access navigation and the sidebar keeps less-used settings collapsed. See `RELEASE_NOTES_v0.5.4.md` and `UI_GUIDE.md`.

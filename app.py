@@ -1,4 +1,4 @@
-"""PEIMS — Project Engineering Intelligence & Management System (fictional prototype).
+"""PEIMS — Project Engineering Intelligence & Management System (fictional UI v0.5.4).
 
 Run with: streamlit run app.py
 """
@@ -98,6 +98,32 @@ def flags_panel(alerts: list[dict]):
             f'<div class="peims-alert"><strong>{heading}</strong><div>{msg}</div>'
             f'<small>Suggested follow-up: {nxt}</small></div>', unsafe_allow_html=True,
         )
+
+
+def change_workspace(target: str) -> None:
+    """Navigate through the same sidebar radio state (no duplicated page state)."""
+    if target not in NAVIGATION:
+        raise ValueError("Unknown PEIMS workspace")
+    st.session_state["workspace_navigation"] = target
+
+
+def show_shortcuts(result: dict) -> None:
+    """Mobile-friendly, native controls; all shortcuts work from the overview."""
+    k = result["kpi"]
+    shortcuts = (
+        ("Schedule", f"Schedule · {int(k['slipping_activities'])} slipping"),
+        ("Cost control", "Cost & forecast"),
+        ("Procurement", f"Procurement · {int(k['overdue_po'])} overdue"),
+        ("Reports", "Reports & exports"),
+    )
+    with st.container(key="peims_shortcuts"):
+        st.markdown('<div class="peims-shortcut-caption">QUICK ACCESS</div>', unsafe_allow_html=True)
+        cols = st.columns(4, gap="small")
+        for col, (target, label) in zip(cols, shortcuts):
+            with col:
+                st.button(label, key=f"peims_go_{target.replace(' ', '_').lower()}",
+                          on_click=change_workspace, args=(target,), use_container_width=True,
+                          help=f"Open {target} workspace")
 
 
 def show_overview(result: dict):
@@ -497,24 +523,17 @@ def main():
     st.sidebar.divider()
     st.sidebar.markdown('<div class="peims-sidebar-heading">PREFERENCES</div>', unsafe_allow_html=True)
     compact = st.sidebar.toggle("Compact layout", value=False, key="ui_compact")
-    st.sidebar.markdown(
-        '<div class="peims-theme-tip"><strong>☀️ Light / 🌙 Dark</strong><div>'
-        'Choose your appearance from the app menu <strong>⋮ → Settings → Appearance</strong> '
-        '(Light, Dark, or System). Tables and charts follow the selected theme.</div></div>',
-        unsafe_allow_html=True,
-    )
+    with st.sidebar.expander("☀️ Appearance & display", expanded=False):
+        st.caption("Choose Light, Dark, or System from the app menu: ⋮ → Settings → Appearance.")
+        st.caption("Theme selection is controlled by Streamlit and applies to native tables and charts.")
     st.markdown(render_css(compact), unsafe_allow_html=True)
 
     chosen_info = ps.loc[ps["project_id"].eq(chosen)].iloc[0]
     display_date = pd.Timestamp(chosen_info["snapshot_date"]).strftime("%d %b %Y")
-    st.sidebar.markdown('<div class="peims-sidebar-heading">WORKSPACE STATUS</div>', unsafe_allow_html=True)
-    st.sidebar.markdown(
-        "<div class='peims-sidebar-note'><strong>Sample project · Session workspace</strong>"
-        "<div style='margin-top:.3rem'>Reporting snapshot: " + escape(display_date) + "</div>"
-        "<div>Changes need a manual workspace backup.</div>"
-        "<div>Enterprise API is not connected.</div></div>", unsafe_allow_html=True,
-    )
-    st.sidebar.caption("PEIMS · Adaptive theme 0.5.3")
+    with st.sidebar.expander("Workspace information", expanded=False):
+        st.caption(f"Fictional project · snapshot {display_date}")
+        st.caption("Session-only edits; export backups manually. No enterprise API connection.")
+    st.sidebar.caption("PEIMS · Workspace polish 0.5.4")
 
     try:
         result = compute(select_project(all_data, chosen))
@@ -531,6 +550,7 @@ def main():
     # Only render the selected workspace: more usable navigation and fewer heavy
     # charts per interaction, without altering calculation/validation behaviour.
     if section == "Command centre":
+        show_shortcuts(result)
         show_overview(result)
     elif section == "Schedule":
         show_schedule(result)
