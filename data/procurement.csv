@@ -1,0 +1,10 @@
+po_id,project_id,item,supplier,expected_date,received_date,po_value,critical,status
+VPO-101,UGV-001,Ventilation fan rotor and housing,Vendor A (fictional),2026-11-05,,860000,Yes,In transit
+VPO-102,UGV-001,Motor control centre,Vendor B (fictional),2026-10-15,2026-10-14,290000,Yes,Received
+VPO-103,UGV-001,Instrumentation and sensors,Vendor C (fictional),2026-11-04,,90000,No,In transit
+VPO-104,UGV-001,Protection relay panel,Vendor D (fictional),2026-11-19,,185000,Yes,Ordered
+VPO-105,UGV-001,Spare drive belts and coupling,Vendor E (fictional),2026-11-22,,45000,No,Ordered
+DPO-201,DWP-002,Duty pump and motor package,Vendor F (fictional),2026-11-07,,660000,Yes,In transit
+DPO-202,DWP-002,Rising main pipe sections,Vendor G (fictional),2026-11-16,,220000,Yes,Ordered
+DPO-203,DWP-002,Flow and level transmitters,Vendor H (fictional),2026-11-24,,65000,No,Ordered
+DPO-204,DWP-002,LV power distribution boards,Vendor I (fictional),2026-11-03,2026-11-02,180000,Yes,Received
