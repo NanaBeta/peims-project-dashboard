@@ -32,7 +32,8 @@ def test_every_workspace_page_renders_with_each_project(project_id):
         assert at.sidebar.radio[0].value == page
         if page in ('Command centre', 'Schedule', 'Cost control'):
             assert len(at.metric) >= 3
-    assert len(at.tabs) >= 4  # Workflow subtabs replace the old global 9-tab ribbon.
+        if page == 'Workflows':
+            assert len(at.tabs) >= 4  # Four workflow subtabs, no global tab ribbon.
 
 
 def test_compact_layout_still_renders():
