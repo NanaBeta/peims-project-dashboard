@@ -1,0 +1,11 @@
+action_id,project_id,action,owner,due_date,priority,status,source
+VA01,UGV-001,Obtain confirmed fan delivery evidence,Procurement Lead,2026-11-06,High,Open,Supplier review
+VA02,UGV-001,Validate mechanical installation recovery plan,Project Engineer,2026-11-10,High,In progress,Weekly meeting
+VA03,UGV-001,Approve instrumentation termination drawings,Electrical Engineer,2026-11-07,Medium,Open,Design review
+VA04,UGV-001,Close MCC factory acceptance checklist,Commissioning Lead,2026-11-04,Medium,Closed,FAT
+VA05,UGV-001,Review underground work permit interface,Site Superintendent,2026-11-12,High,Open,HSE coordination
+DA01,DWP-002,Verify pump motor supplier dispatch date,Procurement Lead,2026-11-08,High,Open,Supplier review
+DA02,DWP-002,Review sump civil progress measurements,Project Engineer,2026-11-10,Medium,In progress,Site meeting
+DA03,DWP-002,Confirm electrical feeder protection settings,Electrical Engineer,2026-11-12,High,Open,Electrical review
+DA04,DWP-002,Approve sensor I/O list,Controls Team,2026-11-14,Medium,Open,Design review
+DA05,DWP-002,Close hydrological survey report,Technical Team,2026-10-20,Low,Closed,Technical
