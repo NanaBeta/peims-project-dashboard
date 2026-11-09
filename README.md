@@ -1,76 +1,69 @@
 # PEIMS — Project Engineering Intelligence & Management System
 
-**Version 0.2 · Cloud-ready source package · Fictional data only**
+**Version 0.4: prototype with a public sample-data dashboard and a separate enterprise API foundation.**
 
-PEIMS is an independent engineering portfolio prototype. It is **not associated with Newmont**, not connected to operational systems, and not an approved system for safety, planning, procurement, or financial decisions.
+PEIMS is an independent fictional engineering portfolio prototype, **not a Newmont system**. No company approval, enterprise integration, operational protection function, or data access is implied.
 
-## Choose the version
+## Choose what to run
 
-| Mode | File / deployment platform | What it offers |
-|---|---|---|
-| Read-only interactive demo | `index.html` on any modern browser or GitHub Pages | Six dashboard views, two projects, project switcher, Markdown report downloads; no login or server |
-| Editable application | `app.py` on Streamlit Community Cloud | Seven tabs, analytics, charts, register downloads, session-only CSV replacement, report downloads |
+| Component | Location | What works now | Limits |
+|---|---|---|---|
+| Streamlit demonstrator | `app.py` | Existing v0.3 workflows + dependency-constrained schedule illustration and CPI cost forecast | Public demo has no login, database or inter-user persistence; only fictional records |
+| Static GitHub Pages preview | `index.html` | Earlier read-only sample dashboard | Frozen preview; does not show new v0.4 modules |
+| FastAPI enterprise foundation | `enterprise/main.py` | OIDC JWT authentication, project membership roles, PostgreSQL schema/migration, activity/RFI/cost endpoints, optimistic versioning, audit events | Requires a separately provisioned PostgreSQL database, identity provider, TLS and service hosting; **NOT** running as part of Streamlit |
 
-The static preview **does not** accept CSV uploads, persist changes, or execute the Python calculation engine at runtime. Its synthetic datasets were generated from the Python calculations and checked for consistency in tests.
+## New in v0.4
 
-## Modules
+- **Limited critical-path analysis:** finish-to-start links, non-negative whole-day lags, baseline not-before starts, cycle detection, earliest dates, total float and critical activities. The calculations are **not** a Primavera P6 replacement, do not respect work calendars or resources and do not reschedule from measured construction progress.
+- **Cost-at-completion scenario:** CPI continuation EAC, ETC, and VAC. Unspent commitments are reported separately from actual costs; calculations require approved baselines and project controls review.
+- **Separate enterprise API source:** SQLAlchemy models, versioned Alembic migration, PostgreSQL-only runtime configuration, OIDC JWT issuer/audience/signature verification, viewer/engineer/manager membership checks, project-scoped rows, event recording and concurrent-edit protection.
+- **Secure-by-default boundary:** the public Streamlit application does **not** connect to a new database or expose an API token; secrets and deployment credentials are not included.
 
-1. Command centre: progress, alerts and management attention
-2. Scheduling: activity progress, timeline and illustrative schedule index
-3. Cost control: EV, PV, AC, CPI and cost variances
-4. Procurement: expected deliveries and late / critical orders
-5. Risk and actions: 5x5 matrix and follow-up register
-6. Weekly report: transparent rule-based Markdown / text export
-7. Data studio (Streamlit only): CSV templates, validation, temporary replacement and reset
+Existing v0.3 dashboard features remain: project overview, schedules, cost controls, procurement, risk/actions, reporting, data studio, editable contractor/RFI/document metadata registers and session ZIP backups.
 
-All prompts and warnings are deterministic rules, **not predictive AI**. No third-party AI services or company integrations are present.
-
-## Deploy
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for verified GitHub Pages and Streamlit Community Cloud steps, including guidance for a phone-only workflow.
-
-**To run locally (Python 3.11–3.12 recommended):**
+## Run the public fictional-data dashboard
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-**Test:**
+Local or GitHub Pages preview: open `index.html` in a browser. The preview is not the Streamlit app.
+
+## Test
 
 ```bash
-pip install pytest
-python -m pytest tests -q
+python -m pip install -r requirements.txt -r requirements-api.txt pytest
+python -m pytest tests/ -q
+python -m compileall -q app.py analytics.py workflow.py project_controls.py enterprise/
 node scripts/test_preview.js
 ```
 
-The GitHub Actions workflow at `.github/workflows/ci.yml` runs automated checks on each push. AppTest integration checks require Streamlit to be installed; without it they are skipped.
+The Streamlit integration tests need Streamlit installed. GitHub Actions installs both sets of dependencies.
 
-## Controls and limitations
+## Deploy the enterprise API (separate infrastructure)
 
-- Only demonstration data is supplied; no real mine, person, contractor, or business financial records.
-- Uploaded CSVs are held in session state, not saved in a production database; refresh/reset can discard changes.
-- A 10 MB upload limit is configured for the demo; application use is restricted to approved sample records.
-- The planned schedule is time-linear by activity; this does **not** replicate Primavera P6 critical-path logic, approved progress measurement, or resource-loaded baselines.
-- There are no roles, authentication, audit history, data backups, formal approvals, predictive models, or enterprise interfaces.
-- For a working mine, use site-mandated IT security, data classification, HSE governance, and project-control methods. Never use this prototype to transmit company data to a public cloud without written approval.
+See [ENTERPRISE_SETUP.md](ENTERPRISE_SETUP.md) and [SECURITY.md](SECURITY.md). Required: PostgreSQL with encrypted connections, verified OAuth/OIDC access tokens intended for the API, server-side provisioning of project members, a secrets manager, HTTPS ingress, backups and a formal deployment/security review. None of these are configured by GitHub or Streamlit Community Cloud automatically.
 
-## Project layout
+**Never enter actual Newmont records into the public demo.** Do not enable an unreviewed enterprise API for mining, HSE, procurement or financial decisions.
 
+## Source layout
+
+```text
+app.py                    Streamlit sample dashboard
+analytics.py              Existing validation and earned value calculations
+workflow.py               Existing session workflow registers
+project_controls.py       v0.4 limited CPM and CPI forecast methods
+data/dependencies.csv     Fictional finish-to-start scheduling links
+enterprise/main.py        REST API application (not a Streamlit service)
+enterprise/models.py      Database schema
+enterprise/auth.py        Verifies OIDC access tokens
+enterprise/database.py    PostgreSQL-only DB configuration
+enterprise/manage.py      Trusted terminal-only provisioning
+enterprise/migrations/    Alembic schema version 0001
+alembic.ini               Database migration entrypoint
+requirements-api.txt      Additional enterprise service dependencies
+ENTERPRISE_SETUP.md       Setup and verification instructions
+SECURITY.md               Threat model, guardrails and limitations
+tests/                    Local, CI and API security tests
 ```
-app.py                 Streamlit web application
-analytics.py           Data validation, KPIs, flags and reports
-index.html             Standalone, offline and GitHub Pages preview
-data/*.csv             Fictional sample project registers
-requirements.txt       Python dependencies
-.streamlit/config.toml Theme and small upload limit
-.github/workflows/ci.yml  GitHub Actions checks
-tests/*.py             Analytics, panel and AppTest checks
-scripts/test_preview.js  Static-preview logic checks
-DEPLOYMENT.md          Account/deployment instructions
-TEST_REPORT.md         Local verification and known limitations
-```
-
-## v0.3 session workflow update
-
-See [RELEASE_NOTES_v0.3.md](RELEASE_NOTES_v0.3.md). The new **Workflows** tab includes a contractor register, RFIs, an engineering document metadata index and a session backup/restore tool. Actual activity completion can be edited on the Schedule tab. These are **temporary, independent per-visitor edits**; no multiuser database, login or approvals have been implemented. The `index.html` GitHub Pages view is the earlier standalone preview; new workflows are provided in the Streamlit app.

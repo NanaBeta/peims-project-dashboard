@@ -1,65 +1,32 @@
-# Deploy PEIMS online — v0.2
+# PEIMS v0.4 deployment — two distinct services
 
-**Status:** Source is prepared; you must publish it using your own GitHub and/or Streamlit Community Cloud account. No live URL has been created by this package.
+The public sample-data **Streamlit dashboard** is already deployed from the repository. When the `main` branch is updated and CI passes, Streamlit Community Cloud normally redeploys the dashboard automatically. The separate **enterprise FastAPI/PostgreSQL/OIDC backend is NOT hosted**.
 
-## First, upload project files to GitHub
+## Dashboard (fictional data only)
 
-1. Sign in to GitHub: <https://github.com>.
-2. Create a repository named, for example, `peims-project-dashboard`.
-3. Add the **contents of the unzipped project folder**—not the ZIP file itself—to the repository root. Preserve folders such as `data/`, `.streamlit/`, `tests/`, and `.github/workflows/`.
-4. Ensure these files appear at the repository root: `app.py`, `analytics.py`, `requirements.txt`, `index.html`.
-5. Do not upload `secrets.toml`, company files or passwords. This package contains no secrets.
+- GitHub repo: <https://github.com/NanaBeta/peims-project-dashboard>
+- Static browser preview: <https://nanabeta.github.io/peims-project-dashboard/>
+- Streamlit: use the app URL in your Streamlit Community Cloud account, not a guessed hostname.
+- App entrypoint: `app.py`; branch: `main`; Python: `3.12`.
+- No environment secrets or database credentials are required for the sample-data Streamlit app.
+- After updates, test Command centre, Schedule (including limited CPM), Cost control (including CPI estimate), Procurement, Risks & actions, Reports, Data studio and Workflows for both fictional projects. Test CSV downloads/ZIP backups only with demonstration records.
 
-**Phone-only note:** GitHub's browser file uploader accepts files and folders in a supported browser, but uploading a multi-folder project from Android can be awkward. The GitHub integration in ChatGPT may simplify publishing after you explicitly connect and authorize it. On GitHub, you can also use the desktop-site option in your mobile browser. Do not post access tokens in chat.
+GitHub Pages `index.html` remains the older standalone preview, **not** the live Python analytics runtime.
 
-## Option A — Read-only public demo on GitHub Pages
+## Separate enterprise backend — NOT for public demo deployment
 
-This is the quickest way to get a shareable browser demo.
+Do **not** enter an organization database URL into Streamlit Community Cloud. See [ENTERPRISE_SETUP.md](ENTERPRISE_SETUP.md) and [SECURITY.md](SECURITY.md) for the isolated API foundation, required PostgreSQL/OIDC environment and threat limitations.
 
-1. Open your repository, select **Settings → Pages**.
-2. Under **Build and deployment**, select **Deploy from a branch**.
-3. Select **main**, folder **/(root)**, then **Save**.
-4. Use the Pages settings **Visit site** link to get the real URL; test all six tabs and both project selections.
+Enterprise deployment requires a designated and approved HTTPS API service, managed PostgreSQL, issuer/JWKS/audience configuration, secret storage, membership provisioning and operational security validation. Nothing automatically provisions those services from GitHub or Streamlit.
 
-GitHub Free supports Pages for public repositories. GitHub Pages publishes a public site; use synthetic data only. `index.html` is the landing page and needs no server or Python.
+## Verification checklist
 
-Official help: <https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site>
+- [ ] GitHub Actions main-branch test workflow is green for release commit
+- [ ] Streamlit dashboard shows `PEIMS / CONTROLS 0.4`
+- [ ] Two fictional projects switch correctly
+- [ ] Schedule shows network modeled finish, total float and critical activities
+- [ ] Cost controls show EAC, ETC and VAC with assumptions
+- [ ] Workflows, imports, report exports and workspace backup still function
+- [ ] No company-sensitive content, authentication secret or private DSN has been uploaded
 
-## Option B — Full Streamlit app
-
-1. Open <https://share.streamlit.io> and sign in.
-2. Connect GitHub to Streamlit Community Cloud and authorize repository access.
-3. Choose **Create app → Yup, I have an app**.
-4. Select your GitHub repository, branch `main`, and entrypoint `app.py`.
-5. In advanced settings, select Python **3.12**. No secrets or environment variables are required for the sample demo.
-6. Deploy, check the logs for errors, and use the resulting verified `*.streamlit.app` URL.
-7. Test all seven dashboard tabs, both project choices, a sample CSV import, reset and both report downloads.
-
-The sample dashboard is suitable for a *public demonstration* only. Configure visibility deliberately: public GitHub repos generally lead to public Streamlit apps by default. Streamlit Community Cloud is **not a Newmont-approved data environment**.
-
-Official instructions: <https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy>
-
-## Troubleshooting
-
-- **“Module not found”**: check `requirements.txt` is in the repository root and has been committed.
-- **“No such file”**: check `data/*.csv` files were uploaded, not just `app.py`.
-- **App loads but source data seems missing**: verify the repo path and that CSV files retained their exact names.
-- **GitHub Pages shows README instead of dashboard**: ensure `index.html` is in the publishing root and Pages finished deploying.
-- **A Streamlit graph or upload fails**: review Streamlit app logs and the GitHub Actions **PEIMS demonstration checks** job; do not assume a green standalone preview test proves the full app works.
-
-## Post-deployment verification checklist
-
-- [ ] GitHub Actions tests pass after dependency installation
-- [ ] Public static dashboard loads on Android and desktop browsers
-- [ ] Both project selectors work
-- [ ] All six browser-preview modules load
-- [ ] Browser-preview report downloads work
-- [ ] Full Streamlit site loads without errors
-- [ ] Seven tabs work for both projects
-- [ ] CSV upload and reset work using fictional records
-- [ ] All downloadable reports display correct project names and reporting dates
-- [ ] No confidential records or credentials are stored on the public site
-
-## v0.3 compatibility and data safety
-
-This release adds the `workflow.py` module and three fictional `data/*.csv` registers. Streamlit Community Cloud redeploys automatically when the repository's `main` branch is updated. Before considering any organizational pilot, implement real access controls, approved database storage, privacy/security reviews and backups. Session ZIP export/import is **not** a server-side database, account login or compliance audit trail.
+Use simulated data exclusively until enterprise authorization and security reviews are complete.

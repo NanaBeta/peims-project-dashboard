@@ -10,3 +10,9 @@ __pycache__/
 *.zip
 *.db
 .DS_Store
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.db
