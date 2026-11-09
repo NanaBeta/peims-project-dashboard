@@ -43,6 +43,16 @@ class FakeStreamlit(ModuleType):
     def container(self, **kwargs):
         return self
 
+    def form(self, *args, **kwargs):
+        return self
+
+    def form_submit_button(self, *args, **kwargs):
+        return False
+
+    def data_editor(self, data, **kwargs):
+        self.events.append("data_editor")
+        return data
+
     def expander(self, *args, **kwargs):
         return self
 
@@ -92,6 +102,9 @@ def test_all_seven_render_panels_for_both_projects(monkeypatch):
         before = len(fake.events)
         module.show_data_controls(tables)
         assert len(fake.events) > before
+        flow = module.get_demo_workflows()
+        module.show_workflow_hub(tables, flow, pid, result["date"])
+        assert fake.events.count("data_editor") >= 3
     assert fake.events.count('plotly_chart') >= 8
     assert fake.events.count('dataframe') >= 10
     assert fake.events.count('download_button') >= 6

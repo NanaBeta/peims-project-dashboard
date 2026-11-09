@@ -70,3 +70,7 @@ scripts/test_preview.js  Static-preview logic checks
 DEPLOYMENT.md          Account/deployment instructions
 TEST_REPORT.md         Local verification and known limitations
 ```
+
+## v0.3 session workflow update
+
+See [RELEASE_NOTES_v0.3.md](RELEASE_NOTES_v0.3.md). The new **Workflows** tab includes a contractor register, RFIs, an engineering document metadata index and a session backup/restore tool. Actual activity completion can be edited on the Schedule tab. These are **temporary, independent per-visitor edits**; no multiuser database, login or approvals have been implemented. The `index.html` GitHub Pages view is the earlier standalone preview; new workflows are provided in the Streamlit app.

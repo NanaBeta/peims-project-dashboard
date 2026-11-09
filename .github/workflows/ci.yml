@@ -16,6 +16,6 @@ jobs:
       - name: Static and Streamlit integration tests
         run: python -m pytest tests/ -q
       - name: Compile check
-        run: python -m compileall -q app.py analytics.py
+        run: python -m compileall -q app.py analytics.py workflow.py
       - name: Test offline preview functions (Node.js)
         run: node scripts/test_preview.js
