@@ -17,6 +17,8 @@ from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
                       validate_workflow, workflow_metrics, apply_project_register,
                       normalize_for_export, make_snapshot, read_snapshot, workflow_report_appendix)
 
+from project_controls import critical_path, cost_forecast
+
 from analytics import (
     DATASET_COLUMNS,
     compute,
@@ -67,6 +69,11 @@ st.markdown("""
 @st.cache_data(show_spinner=False)
 def get_demo_data() -> dict[str, pd.DataFrame]:
     return {name: validated_frame(name, pd.read_csv(DATA_DIR / f"{name}.csv")) for name in DATASET_COLUMNS}
+
+
+@st.cache_data(show_spinner=False)
+def get_sample_dependencies() -> pd.DataFrame:
+    return pd.read_csv(DATA_DIR / "dependencies.csv")
 
 
 @st.cache_data(show_spinner=False)
@@ -164,7 +171,27 @@ def show_schedule(result: dict):
     fig2.update_yaxes(autorange="reversed")
     fig2.add_vline(x=result["date"].timestamp() * 1000, line_dash="dash", line_color="#e2b66f")
     st.plotly_chart(chart_style(fig2, max(420, len(acts) * 45)), use_container_width=True)
-    st.caption("Illustrative date bars—not a substitute for a validated Primavera P6 critical-path schedule.")
+    st.caption("Original baseline dates. A dependency-aware CPM illustration is shown below, not a P6 replacement.")
+    st.subheader("Dependency network & critical path · limited CPM")
+    try:
+        pid = str(result["info"]["project_id"])
+        links = get_sample_dependencies()
+        links = links.loc[links["project_id"].eq(pid)].copy()
+        cpm = critical_path(acts, links)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Dependency-modeled finish", cpm["model_finish"])
+        c2.metric("Critical activities", len(cpm["critical_activity_ids"]))
+        c3.metric("Links (FS only)", len(links))
+        network = pd.DataFrame(cpm["activities"])
+        network = network.merge(acts[["activity_id", "activity"]], on="activity_id", how="left")
+        st.dataframe(network[["activity_id", "activity", "earliest_start", "earliest_finish", "total_float_days", "critical"]],
+                     use_container_width=True, hide_index=True)
+        st.download_button("Download limited CPM table", network.to_csv(index=False),
+                           file_name=f"PEIMS_CPM_{pid}.csv", mime="text/csv")
+        st.caption(cpm["assumptions"] + " Criticality is based on the modeled network, not field progress or an approved P6 baseline.")
+    except (ValueError, KeyError, TypeError) as ex:
+        st.warning(f"Dependency network could not be calculated for current session data: {ex}")
+
     with st.expander("Edit activity completion (this browser session)", expanded=False):
         st.caption("You can change actual completion %. Baseline dates and budgets remain fixed in this editor.")
         base_acts = st.session_state.get("current_core", {}).get("activities")
@@ -234,6 +261,16 @@ def show_financials(result: dict):
         st.metric("Schedule variance: EV − PV", money(k["schedule_variance_value"], currency))
         st.metric("Committed, not yet actual", money(k["committed_cost"], currency))
         st.caption("Commitments are shown separately and are not added to recorded actual expenditure. Confirm their accounting treatment with project controls.")
+    st.subheader("Estimate at completion · CPI continuation scenario")
+    try:
+        fc = cost_forecast(k["budget"], k["earned_value"], k["actual_cost"], k["committed_cost"])
+        a, b, c = st.columns(3)
+        a.metric("EAC (CPI scenario)", money(fc["eac_cpi"], currency) if fc["eac_cpi"] is not None else "N/A")
+        b.metric("Estimate to complete", money(fc["etc_cpi"], currency) if fc["etc_cpi"] is not None else "N/A")
+        c.metric("Variance at completion", money(fc["vac_cpi"], currency) if fc["vac_cpi"] is not None else "N/A")
+        st.caption(fc["method"] + " Commitments are disclosed separately, not double-counted. Forecasts need approved progress measurement and accounting review.")
+    except ValueError as ex:
+        st.warning(f"Cost forecast not available: {ex}")
     st.subheader("Cost by work package")
     df = acts.sort_values("baseline_budget", ascending=False)
     fig2 = go.Figure()
@@ -451,7 +488,7 @@ def main():
     workflows = {name: st.session_state.get("workflow_overrides", {}).get(name, base_workflows[name])
                  for name in WORKFLOW_COLUMNS}
     st.session_state["current_core"] = all_data
-    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / WORKFLOW 0.3</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / CONTROLS 0.4</div>', unsafe_allow_html=True)
     st.sidebar.title("Project controls")
     st.sidebar.caption("Fictional data • No Newmont integration")
     ps = all_data["projects"]
@@ -459,6 +496,7 @@ def main():
     st.sidebar.divider()
     st.sidebar.markdown("**Data status**")
     st.sidebar.caption("Session workspace: changes must be backed up manually")
+    st.sidebar.caption("Enterprise API: separate, not connected to this public demo")
     st.sidebar.markdown("**Reporting date**")
     chosen_info = ps.loc[ps["project_id"].eq(chosen)].iloc[0]
     st.sidebar.caption(pd.Timestamp(chosen_info["snapshot_date"]).strftime("%d %B %Y"))
@@ -485,7 +523,7 @@ def main():
     with tabs[6]: show_data_controls(base_data)
     with tabs[7]: show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
     st.divider()
-    st.caption("PEIMS prototype 0.3 | Session-only workflow workspace with manual ZIP backup. No persistent database, login, real approval workflow, AI model or Newmont integration. Human engineering verification is essential.")
+    st.caption("PEIMS prototype 0.4 | Limited CPM and CPI cost forecast added. Session-only public demo; separate enterprise API source is not deployed. No multiuser authentication or Newmont integration here. Human engineering verification is essential.")
 
 
 if __name__ == "__main__":
