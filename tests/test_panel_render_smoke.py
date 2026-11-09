@@ -95,7 +95,7 @@ def test_all_seven_render_panels_for_both_projects(monkeypatch):
     for pid in tables['projects']['project_id']:
         result = compute(select_project(tables, pid))
         for method in (module.show_overview, module.show_schedule, module.show_financials,
-                       module.show_procurement, module.show_risks, module.show_reports):
+                       module.show_procurement, module.show_risks, module.show_analytics, module.show_reports):
             before = len(fake.events)
             method(result)
             assert len(fake.events) > before, (pid, method.__name__)

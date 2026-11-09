@@ -9,7 +9,6 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -18,6 +17,9 @@ from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
                       normalize_for_export, make_snapshot, read_snapshot, workflow_report_appendix)
 
 from project_controls import critical_path, cost_forecast
+from visuals import (progress_s_curve, schedule_variance, dependency_timeline,
+                     cost_variance_waterfall, cost_exposure_quadrant,
+                     procurement_delivery_map, risk_severity_matrix, insight_summary)
 
 from analytics import (
     DATASET_COLUMNS,
@@ -41,7 +43,7 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    .block-container { padding-top: 1.5rem; padding-bottom: 3rem; max-width: 1480px; }
+    .block-container { padding-top: 1.4rem; padding-bottom: 3rem; max-width: 1560px; }
     #MainMenu {visibility: hidden;}
     h1,h2,h3 { letter-spacing: -.035em; }
     h1 { font-size: 2.1rem!important; }
@@ -62,6 +64,8 @@ st.markdown("""
     .rule-card strong {color:#f0c278;}
     .rule-card small {color:#a9bbce;}
     [data-testid="stTabs"] button {font-size: .89rem;}
+    [data-testid="stPlotlyChart"] {border: 1px solid #293e55; border-radius: 13px; padding: 10px 8px 2px;}
+    [data-testid="stMetric"] {min-height: 103px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -123,74 +127,67 @@ def flags_panel(alerts: list[dict]):
 def show_overview(result: dict):
     k, info = result["kpi"], result["info"]
     a, b, c, d = st.columns(4)
-    a.metric("Physical completion", f"{k['actual_pct']:.1f}%", f"{k['progress_gap']:+.1f} pp vs baseline", delta_color="normal")
-    b.metric("Baseline target", f"{k['planned_pct']:.1f}%", "Linear baseline")
-    c.metric("Recorded expenditure", money(k["actual_cost"], info["currency"]))
-    d.metric("Open high risks", k["open_high_risks"])
-    left, right = st.columns([1.6, 1], gap="large")
+    a.metric("Weighted physical progress", f"{k['actual_pct']:.1f}%", f"{k['progress_gap']:+.1f} pp vs linear baseline")
+    b.metric("Schedule performance (SPI)", f"{k['spi']:.2f}" if k['spi'] is not None else 'N/A')
+    c.metric("Cost performance (CPI)", f"{k['cpi']:.2f}" if k['cpi'] is not None else 'N/A')
+    d.metric("Open high risks", k['open_high_risks'])
+    left, right = st.columns([1.65, 1], gap="large")
     with left:
-        st.subheader("Progress trend")
-        hist = result["history"]
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=hist["week_ending"], y=hist["planned_pct"],
-                                 mode="lines+markers", name="Planned", line=dict(color="#dcb16b", width=3)))
-        fig.add_trace(go.Scatter(x=hist["week_ending"], y=hist["actual_pct"],
-                                 mode="lines+markers", name="Actual", line=dict(color="#39bfb0", width=3),
-                                 fill="tonexty", fillcolor="rgba(57,191,176,.10)"))
-        fig.update_yaxes(range=[0, 100], title="% complete")
-        fig.update_xaxes(title="Week ending")
-        st.plotly_chart(chart_style(fig, 385), use_container_width=True)
-        st.caption("Trend points are fictional weekly records. Current KPIs are recalculated from the activity register.")
+        st.subheader("Progress S-curve · reported vs baseline")
+        st.plotly_chart(progress_s_curve(result['history'], result['date']), use_container_width=True)
+        st.caption("Weekly progress snapshots only. This is a descriptive trend, not a completion forecast. Activity KPIs use the current weighted register and may differ from the last historical point.")
     with right:
-        st.subheader("Management attention")
-        st.metric("Late activities", k["late_activities"])
-        st.metric("Overdue purchase orders", k["overdue_po"])
-        st.metric("Overdue action items", k["overdue_actions"])
-        st.caption("Flags are threshold-based. They do not replace site verification or safety controls.")
-    st.subheader("Prioritized follow-ups")
-    flags_panel(make_alerts(result)[:4])
-
+        st.subheader("Executive interpretation")
+        for statement in insight_summary(result):
+            st.markdown(f"• {statement}")
+        st.divider()
+        st.metric("Overdue deliveries", k['overdue_po'])
+        st.metric("Overdue actions", k['overdue_actions'])
+    st.subheader("Priority exception register")
+    flags_panel(make_alerts(result)[:5])
 
 def show_schedule(result: dict):
     acts, k = result["activities"], result["kpi"]
     a, b, c = st.columns(3)
-    a.metric("Activities", len(acts))
-    b.metric("Behind baseline >10 pp", k["slipping_activities"])
+    a.metric("Tracked activities", len(acts))
+    b.metric("Slipping >10 percentage points", k["slipping_activities"])
     c.metric("Schedule performance index", f"{k['spi']:.2f}" if k["spi"] is not None else "N/A")
-    st.subheader("Progress by activity")
-    df = acts.sort_values("wbs", ascending=False)
-    fig = go.Figure()
-    for label, field, color in [("Baseline", "planned_pct", "#e2b66f"), ("Actual", "actual_pct", "#3fc2b4")]:
-        fig.add_trace(go.Bar(y=df["activity"], x=df[field], name=label, orientation="h", marker_color=color))
-    fig.update_layout(barmode="group", height=max(420, len(df) * 48), xaxis_title="Completion (%)", xaxis_range=[0, 105])
-    st.plotly_chart(chart_style(fig, max(420, len(df) * 48)), use_container_width=True)
-    st.subheader("Baseline activity timeline")
-    timeline = acts.sort_values("start_date")
-    fig2 = px.timeline(timeline, x_start="start_date", x_end="finish_date", y="activity",
-                       color="owner", hover_data={"actual_pct":True, "wbs":True})
-    fig2.update_yaxes(autorange="reversed")
-    fig2.add_vline(x=result["date"].timestamp() * 1000, line_dash="dash", line_color="#e2b66f")
-    st.plotly_chart(chart_style(fig2, max(420, len(acts) * 45)), use_container_width=True)
-    st.caption("Original baseline dates. A dependency-aware CPM illustration is shown below, not a P6 replacement.")
-    st.subheader("Dependency network & critical path · limited CPM")
+    st.subheader("Activity completion · variance dumbbells")
+    st.plotly_chart(schedule_variance(acts), use_container_width=True)
+    st.caption("Open circle = linear baseline; solid circle = actual completion. Red marks activities >10 pp behind. Sort prioritizes the largest negative gap toward the bottom.")
+    st.subheader("Dependency model · illustrative CPM")
     try:
-        pid = str(result["info"]["project_id"])
+        pid = str(result['info']['project_id'])
         links = get_sample_dependencies()
-        links = links.loc[links["project_id"].eq(pid)].copy()
+        links = links.loc[links['project_id'].eq(pid)].copy()
         cpm = critical_path(acts, links)
         c1, c2, c3 = st.columns(3)
-        c1.metric("Dependency-modeled finish", cpm["model_finish"])
-        c2.metric("Critical activities", len(cpm["critical_activity_ids"]))
-        c3.metric("Links (FS only)", len(links))
-        network = pd.DataFrame(cpm["activities"])
-        network = network.merge(acts[["activity_id", "activity"]], on="activity_id", how="left")
-        st.dataframe(network[["activity_id", "activity", "earliest_start", "earliest_finish", "total_float_days", "critical"]],
-                     use_container_width=True, hide_index=True)
-        st.download_button("Download limited CPM table", network.to_csv(index=False),
-                           file_name=f"PEIMS_CPM_{pid}.csv", mime="text/csv")
-        st.caption(cpm["assumptions"] + " Criticality is based on the modeled network, not field progress or an approved P6 baseline.")
+        c1.metric('Modelled network finish', cpm['model_finish'])
+        c2.metric('Critical activities', len(cpm['critical_activity_ids']))
+        c3.metric('Finish-to-start links', len(links))
+        st.plotly_chart(dependency_timeline(acts, cpm, result['date']), use_container_width=True)
+        st.caption('Red = zero-float activity in the limited CPM model; blue = noncritical. Dates reflect calendar-day dependencies and baseline no-earlier-than starts, not a recovered/validated P6 schedule.')
+        with st.expander('Critical path calculation and export'):
+            network = pd.DataFrame(cpm['activities']).merge(acts[['activity_id','activity']], on='activity_id', how='left')
+            st.dataframe(network[['activity_id','activity','earliest_start','earliest_finish','total_float_days','critical']], use_container_width=True, hide_index=True)
+            st.download_button('Export CPM model CSV', network.to_csv(index=False),
+                               file_name=f'PEIMS_CPM_{pid}.csv', mime='text/csv')
+            st.caption(cpm['assumptions'])
     except (ValueError, KeyError, TypeError) as ex:
-        st.warning(f"Dependency network could not be calculated for current session data: {ex}")
+        st.warning(f'Dependency model unavailable for current session records: {ex}')
+    st.subheader("Activity control register")
+    show = acts.sort_values('wbs').copy()
+    show['start_date'] = show['start_date'].dt.strftime('%Y-%m-%d')
+    show['finish_date'] = show['finish_date'].dt.strftime('%Y-%m-%d')
+    st.dataframe(df_display(show, {'wbs':'WBS', 'activity':'Activity', 'owner':'Owner',
+                                   'start_date':'Baseline start', 'finish_date':'Baseline finish',
+                                   'planned_pct':'Planned %', 'actual_pct':'Actual %',
+                                   'variance_pp':'Gap (pp)', 'is_late':'Past baseline finish'}),
+                 use_container_width=True, hide_index=True)
+    st.download_button('Export activity controls CSV', acts.to_csv(index=False),
+                       file_name='activity_controls.csv', mime='text/csv')
+
+
 
     with st.expander("Edit activity completion (this browser session)", expanded=False):
         st.caption("You can change actual completion %. Baseline dates and budgets remain fixed in this editor.")
@@ -238,95 +235,116 @@ def show_schedule(result: dict):
 
 
 def show_financials(result: dict):
-    k, currency, acts = result["kpi"], result["info"]["currency"], result["activities"]
+    k, currency, acts = result['kpi'], result['info']['currency'], result['activities']
     cols = st.columns(4)
-    cols[0].metric("Budget at completion", money(k["budget"], currency))
-    cols[1].metric("Actual cost (AC)", money(k["actual_cost"], currency))
-    cols[2].metric("Earned value (EV)", money(k["earned_value"], currency))
-    cols[3].metric("CPI", f"{k['cpi']:.2f}" if k["cpi"] is not None else "N/A")
-    left, right = st.columns([1.3, 1], gap="large")
+    cols[0].metric('Budget at completion (BAC)', money(k['budget'], currency))
+    cols[1].metric('Actual cost (AC)', money(k['actual_cost'], currency))
+    cols[2].metric('Earned value (EV)', money(k['earned_value'], currency))
+    cols[3].metric('Cost efficiency (CPI)', f"{k['cpi']:.2f}" if k['cpi'] is not None else 'N/A')
+    left, right = st.columns([1.35,1], gap='large')
     with left:
-        st.subheader("Earned value comparison")
-        fig = go.Figure(go.Bar(
-            x=["Planned value (PV)", "Earned value (EV)", "Actual cost (AC)"],
-            y=[k["planned_value"], k["earned_value"], k["actual_cost"]],
-            marker_color=["#e0b76d", "#39bfae", "#87a9d4"],
-            text=[money(v, currency) for v in [k["planned_value"], k["earned_value"], k["actual_cost"]]],
-            textposition="outside"))
-        fig.update_yaxes(title=f"{currency}")
-        st.plotly_chart(chart_style(fig, 365), use_container_width=True)
+        st.subheader('Cost variance bridge · AC → EV')
+        st.plotly_chart(cost_variance_waterfall(k, currency), use_container_width=True)
+        st.caption('Waterfall reconciles recorded AC to earned value through cost variance (EV − AC). It is not a cash-flow statement.')
     with right:
-        st.subheader("Cost signals")
-        st.metric("Cost variance: EV − AC", money(k["cost_variance"], currency))
-        st.metric("Schedule variance: EV − PV", money(k["schedule_variance_value"], currency))
-        st.metric("Committed, not yet actual", money(k["committed_cost"], currency))
-        st.caption("Commitments are shown separately and are not added to recorded actual expenditure. Confirm their accounting treatment with project controls.")
-    st.subheader("Estimate at completion · CPI continuation scenario")
+        st.subheader('Earned value signals')
+        st.metric('Cost variance (CV = EV − AC)', money(k['cost_variance'], currency))
+        st.metric('Schedule variance (SV = EV − PV)', money(k['schedule_variance_value'], currency))
+        st.metric('Committed, not yet actual', money(k['committed_cost'], currency))
+        st.caption('Commitments are separately disclosed; they are not added to AC.')
+    st.subheader('Estimate at completion · CPI-continuation scenario')
     try:
-        fc = cost_forecast(k["budget"], k["earned_value"], k["actual_cost"], k["committed_cost"])
-        a, b, c = st.columns(3)
-        a.metric("EAC (CPI scenario)", money(fc["eac_cpi"], currency) if fc["eac_cpi"] is not None else "N/A")
-        b.metric("Estimate to complete", money(fc["etc_cpi"], currency) if fc["etc_cpi"] is not None else "N/A")
-        c.metric("Variance at completion", money(fc["vac_cpi"], currency) if fc["vac_cpi"] is not None else "N/A")
-        st.caption(fc["method"] + " Commitments are disclosed separately, not double-counted. Forecasts need approved progress measurement and accounting review.")
+        fc=cost_forecast(k['budget'], k['earned_value'], k['actual_cost'], k['committed_cost'])
+        a,b,c=st.columns(3)
+        a.metric('Estimate at completion (EAC)', money(fc['eac_cpi'], currency) if fc['eac_cpi'] is not None else 'N/A')
+        b.metric('Estimate to complete (ETC)', money(fc['etc_cpi'], currency) if fc['etc_cpi'] is not None else 'N/A')
+        c.metric('Variance at completion (VAC)', money(fc['vac_cpi'], currency) if fc['vac_cpi'] is not None else 'N/A')
+        st.caption(fc['method'] + ' Illustration only; depends on approved physical progress and verified actuals.')
     except ValueError as ex:
-        st.warning(f"Cost forecast not available: {ex}")
-    st.subheader("Cost by work package")
-    df = acts.sort_values("baseline_budget", ascending=False)
-    fig2 = go.Figure()
-    fig2.add_trace(go.Bar(x=df["activity"], y=df["baseline_budget"], name="Baseline budget", marker_color="#e0b76d"))
-    fig2.add_trace(go.Bar(x=df["activity"], y=df["actual_cost"], name="Actual costs", marker_color="#39bfae"))
-    fig2.update_layout(barmode="group", xaxis_tickangle=-32)
-    st.plotly_chart(chart_style(fig2, 445), use_container_width=True)
-    with st.expander("Definitions and limitations", expanded=False):
-        st.markdown("**EV** = budget × recorded physical completion. **PV** = budget × assumed planned completion. **AC** = recorded expenditure. **CPI** = EV/AC. **SPI** = EV/PV. The baseline assumes linear activity progression; real project baselines and progress measurement must be approved and verified.")
-
+        st.warning(f'Forecast unavailable: {ex}')
+    st.subheader('Work-package exposure · schedule versus cost')
+    st.plotly_chart(cost_exposure_quadrant(acts, currency), use_container_width=True)
+    st.caption('Each bubble is one activity; size represents baseline budget. Bottom-left contains activities both behind baseline and with negative cost variance. The figure is diagnostic, not a causal inference.')
+    with st.expander('Metric definitions and limitations'):
+        st.markdown('**EV** = baseline budget × verified actual completion. **PV** = budget × modelled planned completion. **AC** = recorded expenditure. **CPI** = EV / AC and **SPI** = EV / PV. Planned completion is assumed linear between baseline dates. These are provisional project controls, not a validated financial ledger.')
 
 def show_procurement(result: dict):
-    p = result["procurement"].copy()
-    a, b, c = st.columns(3)
-    a.metric("Open purchase orders", int((~p["received"]).sum()))
-    b.metric("Overdue orders", int(p["overdue"].sum()))
-    c.metric("Critical deliveries overdue", result["kpi"]["critical_overdue_po"])
-    st.subheader("Delivery exceptions")
-    late = p.loc[p["overdue"]].sort_values("days_late", ascending=False)
+    p = result['procurement'].copy()
+    a,b,c=st.columns(3)
+    a.metric('Open purchase orders', int((~p['received']).sum()))
+    b.metric('Overdue deliveries', int(p['overdue'].sum()))
+    c.metric('Critical overdue', result['kpi']['critical_overdue_po'])
+    st.subheader('Delivery exposure · timing × committed order value')
+    st.plotly_chart(procurement_delivery_map(p, result['date'], result['info']['currency']), use_container_width=True)
+    st.caption('Vertical dashed line = reporting cut-off. Bubble area increases with PO value; red = critical and overdue, amber = overdue. These order values are not necessarily costs incurred.')
+    st.subheader('Delivery exceptions')
+    late=p.loc[p['overdue']].sort_values(['days_late','po_value'], ascending=[False, False])
     if late.empty:
-        st.success("No overdue delivery dates in the selected project.")
+        st.success('No outstanding past-due purchase orders in this snapshot.')
     else:
-        for _, order in late.iterrows():
-            st.warning(f"{order['po_id']} — {order['item']}: {int(order['days_late'])} day(s) overdue. Critical: {order['critical']}. Follow up with {order['supplier']}.")
-    st.subheader("Procurement register")
-    p["expected_date"] = p["expected_date"].dt.strftime("%Y-%m-%d")
-    p["received_date"] = p["received_date"].dt.strftime("%Y-%m-%d").fillna("—")
-    st.dataframe(df_display(p, {"po_id":"PO", "item":"Item", "supplier":"Supplier", "status":"Status", "expected_date":"Expected", "received_date":"Received", "po_value":"PO value", "critical":"Critical", "days_late":"Days late"}),
+        for _,row in late.iterrows():
+            st.warning(f"{row['po_id']} — {row['item']}: {int(row['days_late'])} days overdue; critical: {row['critical']}; contact {row['supplier']}.")
+    st.subheader('Procurement detail')
+    p['expected_date']=p['expected_date'].dt.strftime('%Y-%m-%d')
+    p['received_date']=p['received_date'].dt.strftime('%Y-%m-%d').fillna('—')
+    st.dataframe(df_display(p, {'po_id':'PO', 'item':'Item', 'supplier':'Supplier', 'status':'Status',
+                                'expected_date':'Expected', 'received_date':'Received',
+                                'po_value':'PO value', 'critical':'Critical', 'days_late':'Days late'}),
                  use_container_width=True, hide_index=True)
 
-
 def show_risks(result: dict):
-    risks, actions = result["risks"], result["actions"]
-    a,b,c = st.columns(3)
-    a.metric("Open risks", int(risks["open"].sum()))
-    b.metric("High risks", result["kpi"]["open_high_risks"])
-    c.metric("Overdue actions", result["kpi"]["overdue_actions"])
-    left, right = st.columns([.82, 1.18], gap="large")
+    risks, actions = result['risks'], result['actions']
+    a,b,c=st.columns(3)
+    a.metric('Open risks', int(risks['open'].sum()))
+    b.metric('High risks', result['kpi']['open_high_risks'])
+    c.metric('Overdue actions', result['kpi']['overdue_actions'])
+    left,right=st.columns([.92,1.08],gap='large')
     with left:
-        st.subheader("Risk matrix")
-        open_risks = risks.loc[risks["open"]]
-        matrix = pd.crosstab(open_risks["impact"], open_risks["probability"]).reindex(index=range(1,6),columns=range(1,6),fill_value=0)
-        fig = go.Figure(go.Heatmap(z=matrix.values, x=[1,2,3,4,5], y=[1,2,3,4,5],
-                                   text=matrix.values, texttemplate="%{text}", zmin=0,
-                                   colorscale=[[0,"#25384c"],[.5,"#bd9545"],[1,"#c85b57"]], showscale=False))
-        fig.update_xaxes(title="Probability (1–5)")
-        fig.update_yaxes(title="Impact (1–5)")
-        st.plotly_chart(chart_style(fig, 365), use_container_width=True)
-        st.caption("Demonstration qualitative 5×5 matrix. Site risk assessment procedures take precedence.")
+        st.subheader('Risk severity matrix · P × I')
+        st.plotly_chart(risk_severity_matrix(risks), use_container_width=True)
+        st.caption('Background colour reflects probability × impact score, while each cell label counts OPEN risks in that cell. Closed risks are excluded. Site-approved risk thresholds take precedence.')
     with right:
-        st.subheader("Priority action register")
-        acts = actions.copy().sort_values(["overdue", "due_date"],ascending=[False,True])
-        acts["due_date"] = acts["due_date"].dt.strftime("%Y-%m-%d")
-        st.dataframe(df_display(acts, {"action_id":"ID", "action":"Action", "owner":"Owner", "due_date":"Due", "priority":"Priority", "status":"Status", "overdue":"Overdue"}), use_container_width=True, hide_index=True, height=355)
-    st.subheader("Risk register")
-    st.dataframe(df_display(risks.sort_values("score",ascending=False), {"risk_id":"ID", "risk":"Risk", "category":"Area", "probability":"P", "impact":"I", "score":"Score", "level":"Level", "status":"Status", "owner":"Owner", "mitigation":"Mitigation"}), use_container_width=True, hide_index=True)
+        st.subheader('Priority action register')
+        acts=actions.copy().sort_values(['overdue','due_date'],ascending=[False,True])
+        acts['due_date']=acts['due_date'].dt.strftime('%Y-%m-%d')
+        st.dataframe(df_display(acts, {'action_id':'ID', 'action':'Action', 'owner':'Owner',
+                                       'due_date':'Due', 'priority':'Priority', 'status':'Status',
+                                       'overdue':'Overdue'}),use_container_width=True,hide_index=True,height=440)
+    st.subheader('Detailed risk register')
+    st.dataframe(df_display(risks.sort_values('score',ascending=False),
+                            {'risk_id':'ID','risk':'Risk','category':'Area','probability':'P',
+                             'impact':'I','score':'Score','level':'Level', 'status':'Status',
+                             'owner':'Owner','mitigation':'Mitigation'}),
+                 use_container_width=True,hide_index=True)
+
+
+def show_analytics(result: dict):
+    """Cross-discipline analytical exploration; respects the active project."""
+    st.subheader('Analytical studio · linked project signals')
+    st.caption('Visualize work-package relationships with a real project/owner filter. Values come from the current project snapshot; no predictive AI is applied.')
+    acts=result['activities']
+    owners=['All owners']+sorted(acts['owner'].dropna().astype(str).unique().tolist())
+    selected_owner=st.selectbox('Work-package owner', owners, key='analytics_owner')
+    filtered=acts if selected_owner=='All owners' else acts.loc[acts['owner'].eq(selected_owner)]
+    a,b,c=st.columns(3)
+    a.metric('Selected activities', len(filtered))
+    a_gap=float((filtered['actual_pct']*filtered['weight']).sum()/filtered['weight'].sum()-(filtered['planned_pct']*filtered['weight']).sum()/filtered['weight'].sum()) if not filtered.empty and filtered['weight'].sum()>0 else 0.0
+    b.metric('Selected physical progress gap', f'{a_gap:+.1f} pp')
+    c.metric('Selected cost variance', money(float((filtered['earned_value']-filtered['actual_cost']).sum()),result['info']['currency']))
+    l,r=st.columns([1.15,1],gap='large')
+    with l:
+        st.markdown('**Schedule performance · selected work packages**')
+        st.plotly_chart(schedule_variance(filtered),use_container_width=True)
+    with r:
+        st.markdown('**Financial exposure · selected work packages**')
+        st.plotly_chart(cost_exposure_quadrant(filtered,result['info']['currency']),use_container_width=True)
+    st.caption('Drill-down filter applies only to the two analytical charts and selected-owner KPI cards. Main project reports remain based on the complete project data.')
+    st.dataframe(df_display(filtered.sort_values('variance_pp'),
+                 {'activity_id':'ID','activity':'Activity','owner':'Owner',
+                  'variance_pp':'Progress gap (pp)','baseline_budget':'Baseline budget',
+                  'earned_value':'Earned value','actual_cost':'Actual cost'}),
+                 use_container_width=True,hide_index=True)
+
 
 
 def show_reports(result: dict, workflows: dict[str, pd.DataFrame] | None = None):
@@ -488,7 +506,7 @@ def main():
     workflows = {name: st.session_state.get("workflow_overrides", {}).get(name, base_workflows[name])
                  for name in WORKFLOW_COLUMNS}
     st.session_state["current_core"] = all_data
-    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / CONTROLS 0.5</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / ANALYTICS 0.5.1</div>', unsafe_allow_html=True)
     st.sidebar.title("Project controls")
     st.sidebar.caption("Fictional data • No Newmont integration")
     ps = all_data["projects"]
@@ -513,17 +531,18 @@ def main():
         # Data tab stays reachable for recovery via the reset interface.
         show_data_controls(base_data)
         return
-    tabs = st.tabs(["◈ Command centre", "▤ Schedule", "◉ Cost control", "▣ Procurement", "⚑ Risks & actions", "▧ Reports", "⚙ Data studio", "▦ Workflows"])
+    tabs = st.tabs(["◈ Command centre", "▤ Schedule", "◉ Cost control", "▣ Procurement", "⚑ Risks & actions", "◫ Analytics studio", "▧ Reports", "⚙ Data studio", "▦ Workflows"])
     with tabs[0]: show_overview(result)
     with tabs[1]: show_schedule(result)
     with tabs[2]: show_financials(result)
     with tabs[3]: show_procurement(result)
     with tabs[4]: show_risks(result)
-    with tabs[5]: show_reports(result, workflows)
-    with tabs[6]: show_data_controls(base_data)
-    with tabs[7]: show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
+    with tabs[5]: show_analytics(result)
+    with tabs[6]: show_reports(result, workflows)
+    with tabs[7]: show_data_controls(base_data)
+    with tabs[8]: show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
     st.divider()
-    st.caption("PEIMS prototype 0.5 | Public demo remains session-only. The v0.5 persistent multiuser API is source code only and is not connected to this dashboard. No company integration or authorization. Human engineering verification is essential.")
+    st.caption("PEIMS prototype 0.5.1 | Public demo remains session-only. The v0.5 persistent multiuser API is source code only and is not connected to this dashboard. No company integration or authorization. Human engineering verification is essential.")
 
 
 if __name__ == "__main__":
