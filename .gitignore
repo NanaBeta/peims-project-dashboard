@@ -7,5 +7,6 @@ __pycache__/
 .streamlit/secrets.toml
 .streamlit/credentials.toml
 *.sqlite
+*.zip
 *.db
 .DS_Store

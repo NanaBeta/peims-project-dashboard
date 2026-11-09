@@ -1,0 +1,6 @@
+rfi_id,project_id,subject,discipline,raised_by,assigned_to,opened_on,due_date,status,critical,response_summary
+RFI-101,UGV-001,Confirm MCC gland plate arrangement,Electrical,Gridline Electrical Demo Ltd,Electrical Engineer,2026-11-02,2026-11-07,In Review,Yes,Awaiting revised layout
+RFI-102,UGV-001,Confirm anchor bolt embedment details,Civil,Ahafo Engineering Demo Ltd,Civil Engineer,2026-10-30,2026-11-06,Answered,No,Use approved drawing revision B
+RFI-103,UGV-001,Clarify fan vibration acceptance criteria,Mechanical,Airflow Mechanical Demo Ltd,Mechanical Engineer,2026-11-05,2026-11-13,Open,Yes,Awaiting vendor guidance
+RFI-201,DWP-002,Verify sump pump discharge routing,Mechanical,Hillside Pumps Demo Ltd,Mechanical Engineer,2026-11-01,2026-11-05,In Review,Yes,Check clashes against latest layout
+RFI-202,DWP-002,Clarify PLC interface signal list,Controls,Voltcraft Controls Demo Ltd,Automation Engineer,2026-11-03,2026-11-15,Open,No,Awaiting commissioning review

@@ -6,11 +6,16 @@ from __future__ import annotations
 
 from html import escape
 from pathlib import Path
+from datetime import datetime, timezone
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+
+from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
+                      validate_workflow, workflow_metrics, apply_project_register,
+                      normalize_for_export, make_snapshot, read_snapshot, workflow_report_appendix)
 
 from analytics import (
     DATASET_COLUMNS,
@@ -62,6 +67,21 @@ st.markdown("""
 @st.cache_data(show_spinner=False)
 def get_demo_data() -> dict[str, pd.DataFrame]:
     return {name: validated_frame(name, pd.read_csv(DATA_DIR / f"{name}.csv")) for name in DATASET_COLUMNS}
+
+
+@st.cache_data(show_spinner=False)
+def get_demo_workflows() -> dict[str, pd.DataFrame]:
+    project_ids = set(get_demo_data()["projects"]["project_id"].astype(str))
+    return {name: validate_workflow(name, pd.read_csv(DATA_DIR / f"{name}.csv"), project_ids)
+            for name in WORKFLOW_COLUMNS}
+
+
+def log_session_change(register: str, record_id: str, action: str, project_id: str):
+    events = list(st.session_state.get("change_history", []))
+    events.append({"timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                   "actor": "demo_session", "project_id": project_id,
+                   "register": register, "record_id": record_id, "action": action})
+    st.session_state["change_history"] = events[-250:]
 
 
 def chart_style(fig, height: int = 340):
@@ -145,6 +165,42 @@ def show_schedule(result: dict):
     fig2.add_vline(x=result["date"].timestamp() * 1000, line_dash="dash", line_color="#e2b66f")
     st.plotly_chart(chart_style(fig2, max(420, len(acts) * 45)), use_container_width=True)
     st.caption("Illustrative date bars—not a substitute for a validated Primavera P6 critical-path schedule.")
+    with st.expander("Edit activity completion (this browser session)", expanded=False):
+        st.caption("You can change actual completion %. Baseline dates and budgets remain fixed in this editor.")
+        base_acts = st.session_state.get("current_core", {}).get("activities")
+        if base_acts is not None:
+            chosen_pid = str(result["info"]["project_id"])
+            subset = base_acts.loc[base_acts["project_id"].eq(chosen_pid), ["activity_id", "activity", "actual_pct"]].copy()
+            with st.form(f"activity_progress_{chosen_pid}"):
+                changes = st.data_editor(subset, hide_index=True, disabled=["activity_id", "activity"],
+                                         key=f"activity_editor_{chosen_pid}", use_container_width=True)
+                submitted = st.form_submit_button("Save activity progress in this session")
+            if submitted:
+                try:
+                    updates = changes.set_index("activity_id")["actual_pct"]
+                    if set(updates.index) != set(subset["activity_id"]):
+                        raise ValueError("Activity IDs cannot be changed")
+                    candidate = base_acts.copy()
+                    changed_ids = []
+                    for idx in candidate.index[candidate["project_id"].eq(chosen_pid)]:
+                        aid = candidate.at[idx, "activity_id"]
+                        new_value = float(updates[aid])
+                        if float(candidate.at[idx, "actual_pct"]) != new_value:
+                            changed_ids.append(aid)
+                            candidate.at[idx, "actual_pct"] = new_value
+                    candidate = validated_frame("activities", candidate)
+                    records = dict(st.session_state["current_core"])
+                    records["activities"] = candidate
+                    compute(select_project(records, chosen_pid))
+                    overrides = dict(st.session_state.get("overrides", {}))
+                    overrides["activities"] = candidate
+                    st.session_state["overrides"] = overrides
+                    for aid in changed_ids:
+                        log_session_change("activities", str(aid), "progress updated", chosen_pid)
+                    st.success(f"Saved {len(changed_ids)} activity changes to this session")
+                    st.rerun()
+                except (ValueError, KeyError, TypeError) as exc:
+                    st.error(f"Progress changes rejected: {exc}")
     st.subheader("Activity register")
     show = acts.sort_values("wbs").copy()
     show["start_date"] = show["start_date"].dt.strftime("%Y-%m-%d")
@@ -236,10 +292,12 @@ def show_risks(result: dict):
     st.dataframe(df_display(risks.sort_values("score",ascending=False), {"risk_id":"ID", "risk":"Risk", "category":"Area", "probability":"P", "impact":"I", "score":"Score", "level":"Level", "status":"Status", "owner":"Owner", "mitigation":"Mitigation"}), use_container_width=True, hide_index=True)
 
 
-def show_reports(result: dict):
+def show_reports(result: dict, workflows: dict[str, pd.DataFrame] | None = None):
     st.subheader("Draft weekly engineering report")
     st.markdown('<div class="peims-note">This is an automatically assembled <b>rule-based report</b> for review. It is not an approved engineering document or a generative AI output.</div>', unsafe_allow_html=True)
     md = weekly_report(result)
+    if workflows is not None:
+        md += workflow_report_appendix(workflows, result["info"]["project_id"], result["date"])
     left, right = st.columns([.65, .35])
     with left:
         st.download_button("Download Markdown report", md, file_name=f"PEIMS_weekly_report_{result['info']['project_id']}.md", mime="text/markdown", use_container_width=True)
@@ -247,6 +305,113 @@ def show_reports(result: dict):
         st.download_button("Download text report", md, file_name=f"PEIMS_weekly_report_{result['info']['project_id']}.txt", mime="text/plain", use_container_width=True)
     with st.container(border=True):
         st.markdown(md)
+
+
+def show_register_editor(name: str, workflows: dict[str, pd.DataFrame], project_id: str,
+                         valid_projects: set[str], snapshot_date):
+    """Session-scoped add/edit/remove table, with per-record change history."""
+    full = workflows[name]
+    shown = full.loc[full["project_id"].eq(project_id)].copy()
+    k = PRIMARY_KEYS[name]
+    with st.expander("Edit records / add rows / remove rows (session only)", expanded=False):
+        st.caption("Use the '+' row at the bottom to create a record. Unique IDs are required. "
+                   "All edits are private to this browser session and not written to the cloud database.")
+        fields = [x for x in WORKFLOW_COLUMNS[name] if x != "project_id"]
+        editable = normalize_for_export(shown[fields])
+        with st.form(f"edit_{name}_{project_id}"):
+            revised = st.data_editor(editable, hide_index=True, num_rows="dynamic",
+                                     use_container_width=True, key=f"table_{name}_{project_id}")
+            accepted = st.form_submit_button(f"Apply {name} changes")
+        if accepted:
+            try:
+                updated, events = apply_project_register(name, full, revised, project_id, valid_projects)
+                overrides = dict(st.session_state.get("workflow_overrides", {}))
+                overrides[name] = updated
+                st.session_state["workflow_overrides"] = overrides
+                audit = list(st.session_state.get("change_history", []))
+                st.session_state["change_history"] = (audit + events)[-250:]
+                st.success(f"Saved {len(events)} changes to this browser session")
+                st.rerun()
+            except (ValueError, KeyError, TypeError) as exc:
+                st.error(f"Changes rejected: {exc}")
+    if name == "contractors":
+        cols = ["contractor_id", "company", "scope", "lead", "status", "planned_finish", "progress_pct", "notes"]
+    elif name == "rfis":
+        cols = ["rfi_id", "subject", "discipline", "assigned_to", "due_date", "status", "critical", "response_summary"]
+    else:
+        cols = ["document_id", "title", "discipline", "revision", "status", "owner", "updated_on", "reference"]
+    st.dataframe(normalize_for_export(shown[cols]), hide_index=True, use_container_width=True)
+    st.download_button(f"Download {name} CSV", normalize_for_export(shown).to_csv(index=False),
+                       file_name=f"{project_id}_{name}.csv", mime="text/csv", key=f"dl_{name}_{project_id}")
+
+
+def show_workflow_hub(core: dict[str, pd.DataFrame], workflows: dict[str, pd.DataFrame],
+                      project_id: str, snapshot_date):
+    st.subheader("Engineering workflow centre")
+    st.markdown('<div class="peims-note"><b>SANDBOX EDITING</b> · Data changes are visible only in your current session. '
+                'They are not shared, durable or approved for confidential mine records. '
+                'Use the workspace backup to save fictional changes.</div>', unsafe_allow_html=True)
+    valid_projects = set(core["projects"]["project_id"].astype(str))
+    m = workflow_metrics(workflows, project_id, snapshot_date)
+    a,b,c,d = st.columns(4)
+    a.metric("Active / listed contractors", m["contractors"])
+    b.metric("At-risk contractors", m["at_risk_contractors"])
+    c.metric("Open RFIs", m["pending_rfis"])
+    d.metric("Pending document reviews", m["pending_documents"])
+    contractors, rfis, docs, workspace = st.tabs(["Contractors", "RFIs", "Document register", "Workspace & history"])
+    with contractors:
+        st.subheader("Contractor performance")
+        st.metric("Late contractor finish dates", m["overdue_contractors"])
+        st.caption("Progress and status are manually entered. This is not connected to contracts, procurement or payroll systems.")
+        show_register_editor("contractors", workflows, project_id, valid_projects, snapshot_date)
+    with rfis:
+        st.subheader("Requests for information")
+        a,b = st.columns(2)
+        a.metric("Overdue open RFIs", m["overdue_rfis"])
+        b.metric("Critical open RFIs", m["critical_open_rfis"])
+        st.caption("'Open' and 'In Review' are counted as outstanding; status updates are not approvals.")
+        show_register_editor("rfis", workflows, project_id, valid_projects, snapshot_date)
+    with docs:
+        st.subheader("Engineering document metadata")
+        st.caption("Tracks titles, owners, revisions and review status only. Files are not uploaded or stored.")
+        show_register_editor("documents", workflows, project_id, valid_projects, snapshot_date)
+    with workspace:
+        st.subheader("Save or restore your demonstration workspace")
+        st.warning("No authenticated multiuser database exists in this version. "
+                   "A download is necessary if you want to retain demo edits after your browser session ends.")
+        history = st.session_state.get("change_history", [])
+        payload = make_snapshot(core, workflows, history, list(DATASET_COLUMNS))
+        st.download_button("Download complete PEIMS workspace (.zip)", payload,
+                           file_name=f"PEIMS_v03_workspace_{project_id}.zip", mime="application/zip",
+                           key="snapshot_dl", use_container_width=True)
+        backup = st.file_uploader("Restore a PEIMS v0.3 workspace ZIP", type="zip", key="restore_snapshot")
+        if st.button("Validate and restore snapshot", disabled=backup is None, key="restore_button"):
+            try:
+                if backup.size > 8 * 1024 * 1024:
+                    raise ValueError("Backup must be smaller than 8 MB")
+                refreshed_core, refreshed_workflows, restored_history = read_snapshot(
+                    backup.getvalue(), list(DATASET_COLUMNS), validated_frame, compute, select_project)
+                st.session_state["overrides"] = refreshed_core
+                st.session_state["workflow_overrides"] = refreshed_workflows
+                st.session_state["change_history"] = restored_history[-249:]
+                log_session_change("workspace", "full_snapshot", "restored", project_id)
+                st.success("Validated snapshot loaded into this session")
+                st.rerun()
+            except (ValueError, TypeError, KeyError) as exc:
+                st.error(f"Could not restore workspace: {exc}")
+        st.subheader("Session change history")
+        if history:
+            st.dataframe(pd.DataFrame(history).iloc[::-1], hide_index=True, use_container_width=True)
+            st.download_button("Download history CSV", pd.DataFrame(history).to_csv(index=False),
+                               "PEIMS_session_history.csv", mime="text/csv")
+        else:
+            st.info("No changes in this browser session yet.")
+        if st.button("Reset demo workspace to initial records", key="all_reset"):
+            st.session_state["overrides"] = {}
+            st.session_state["workflow_overrides"] = {}
+            st.session_state["change_history"] = []
+            st.rerun()
+        st.caption("This is a session change history, NOT a tamper-resistant compliance audit trail.")
 
 
 def show_data_controls(base_data: dict[str, pd.DataFrame]):
@@ -266,6 +431,7 @@ def show_data_controls(base_data: dict[str, pd.DataFrame]):
             for project_id in candidate["projects"]["project_id"]:
                 compute(select_project(candidate, project_id))
             st.session_state["overrides"] = overrides
+            log_session_change(selected, "imported_csv", "imported", "all_projects")
             st.success(f"Validated and applied {selected}. Refresh or reset to return to the sample dataset.")
             st.rerun()
         except Exception as exc:
@@ -281,14 +447,18 @@ def show_data_controls(base_data: dict[str, pd.DataFrame]):
 def main():
     base_data = get_demo_data()
     all_data = {name: st.session_state.get("overrides", {}).get(name, base_data[name]) for name in DATASET_COLUMNS}
-    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / CLOUD-READY 0.2</div>', unsafe_allow_html=True)
+    base_workflows = get_demo_workflows()
+    workflows = {name: st.session_state.get("workflow_overrides", {}).get(name, base_workflows[name])
+                 for name in WORKFLOW_COLUMNS}
+    st.session_state["current_core"] = all_data
+    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / WORKFLOW 0.3</div>', unsafe_allow_html=True)
     st.sidebar.title("Project controls")
     st.sidebar.caption("Fictional data • No Newmont integration")
     ps = all_data["projects"]
     chosen = st.sidebar.selectbox("Active project", ps["project_id"].tolist(), format_func=lambda p: ps.loc[ps["project_id"].eq(p), "project_name"].iloc[0])
     st.sidebar.divider()
     st.sidebar.markdown("**Data status**")
-    st.sidebar.caption("Local demonstration records or temporary CSV imports")
+    st.sidebar.caption("Session workspace: changes must be backed up manually")
     st.sidebar.markdown("**Reporting date**")
     chosen_info = ps.loc[ps["project_id"].eq(chosen)].iloc[0]
     st.sidebar.caption(pd.Timestamp(chosen_info["snapshot_date"]).strftime("%d %B %Y"))
@@ -305,16 +475,17 @@ def main():
         # Data tab stays reachable for recovery via the reset interface.
         show_data_controls(base_data)
         return
-    tabs = st.tabs(["◈ Command centre", "▤ Schedule", "◉ Cost control", "▣ Procurement", "⚑ Risks & actions", "▧ Reports", "⚙ Data studio"])
+    tabs = st.tabs(["◈ Command centre", "▤ Schedule", "◉ Cost control", "▣ Procurement", "⚑ Risks & actions", "▧ Reports", "⚙ Data studio", "▦ Workflows"])
     with tabs[0]: show_overview(result)
     with tabs[1]: show_schedule(result)
     with tabs[2]: show_financials(result)
     with tabs[3]: show_procurement(result)
     with tabs[4]: show_risks(result)
-    with tabs[5]: show_reports(result)
+    with tabs[5]: show_reports(result, workflows)
     with tabs[6]: show_data_controls(base_data)
+    with tabs[7]: show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
     st.divider()
-    st.caption("PEIMS prototype 0.2 | Independent sample project. No live integrations, authentication, predictive model, critical-path engine, audit log or approval workflow. All output needs professional verification.")
+    st.caption("PEIMS prototype 0.3 | Session-only workflow workspace with manual ZIP backup. No persistent database, login, real approval workflow, AI model or Newmont integration. Human engineering verification is essential.")
 
 
 if __name__ == "__main__":

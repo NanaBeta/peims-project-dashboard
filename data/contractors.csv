@@ -1,0 +1,6 @@
+contractor_id,project_id,company,scope,lead,status,planned_finish,progress_pct,notes
+CTR-101,UGV-001,Ahafo Engineering Demo Ltd,Fan foundation and civil works,Civil Lead,Active,2026-11-15,90,Fictional supplier
+CTR-102,UGV-001,Gridline Electrical Demo Ltd,Power cables and MCC installation,Electrical Lead,At Risk,2026-11-12,48,Delivery hold linked to cable drums
+CTR-103,UGV-001,Airflow Mechanical Demo Ltd,Fan assembly and alignment,Mechanical Lead,Active,2026-11-20,56,QA witness point pending
+CTR-201,DWP-002,Hillside Pumps Demo Ltd,Pump skid installation,Mechanical Lead,Active,2026-11-25,65,Fictional contract
+CTR-202,DWP-002,Voltcraft Controls Demo Ltd,Instrumentation and controls,Controls Lead,At Risk,2026-11-08,32,Panel FAT outstanding

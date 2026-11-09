@@ -18,3 +18,10 @@
 - No GitHub repository, GitHub Pages URL, Streamlit deployment, cloud logs, authentication or cloud integration has been created or verified here.
 
 The included GitHub Actions workflow is configured to run Python + Node tests after the project is pushed to a GitHub repository. A passing workflow does not constitute mine safety or production approval.
+
+### v0.3 local development results
+
+- 20 tests passed and 1 Streamlit integration module was skipped locally (Streamlit unavailable in container).
+- 12 standalone preview module/project combinations plus two report download handlers passed in Node.js.
+- New workflow tests cover field validation, cross-project isolation, add/update history, snapshot roundtrip, unexpected ZIP entries and weekly report summary.
+- A GitHub Actions integration test and hosted Streamlit browser check are required before production deployment.

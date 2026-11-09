@@ -59,3 +59,7 @@ Official instructions: <https://docs.streamlit.io/deploy/streamlit-community-clo
 - [ ] CSV upload and reset work using fictional records
 - [ ] All downloadable reports display correct project names and reporting dates
 - [ ] No confidential records or credentials are stored on the public site
+
+## v0.3 compatibility and data safety
+
+This release adds the `workflow.py` module and three fictional `data/*.csv` registers. Streamlit Community Cloud redeploys automatically when the repository's `main` branch is updated. Before considering any organizational pilot, implement real access controls, approved database storage, privacy/security reviews and backups. Session ZIP export/import is **not** a server-side database, account login or compliance audit trail.

@@ -1,0 +1,6 @@
+document_id,project_id,title,discipline,revision,status,owner,updated_on,document_type,reference,notes
+DOC-101,UGV-001,Ventilation fan GA drawing,Mechanical,B,Approved,Mechanical Engineer,2026-10-30,Drawing,DEMO-GA-101,Metadata only no actual attachment
+DOC-102,UGV-001,MCC cable schedule,Electrical,A,For Review,Electrical Engineer,2026-11-06,Schedule,DEMO-ELS-102,Awaiting discipline review
+DOC-103,UGV-001,Installation inspection checklist,Quality,0,Draft,QA Engineer,2026-11-07,Checklist,DEMO-QA-103,Fictional demonstration
+DOC-201,DWP-002,Dewatering pump GA drawing,Mechanical,C,Approved,Mechanical Engineer,2026-11-01,Drawing,DEMO-GA-201,Fictional demonstration
+DOC-202,DWP-002,PLC I O list,Controls,A,For Review,Controls Engineer,2026-11-07,Register,DEMO-PLC-202,Review interfaces
