@@ -17,6 +17,8 @@ from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
                       normalize_for_export, make_snapshot, read_snapshot, workflow_report_appendix)
 
 from project_controls import critical_path, cost_forecast
+from ui_shell import (NAVIGATION, NAV_LABELS, attention_flags, render_css,
+                      render_brand, render_header, render_intro, render_safety, render_footer)
 from visuals import (progress_s_curve, schedule_variance, dependency_timeline,
                      cost_variance_waterfall, cost_exposure_quadrant,
                      procurement_delivery_map, risk_severity_matrix, insight_summary)
@@ -41,33 +43,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.markdown("""
-<style>
-    .block-container { padding-top: 1.4rem; padding-bottom: 3rem; max-width: 1560px; }
-    #MainMenu {visibility: hidden;}
-    h1,h2,h3 { letter-spacing: -.035em; }
-    h1 { font-size: 2.1rem!important; }
-    [data-testid="stMetric"] { background: #14253b; border: 1px solid #2b4056;
-        border-radius: 13px; padding: 15px 17px; }
-    [data-testid="stMetricLabel"] {color:#b5c6d5;}
-    [data-testid="stMetricValue"] {color:#ffffff;}
-    [data-testid="stSidebar"] {background: #101b2b;}
-    [data-testid="stAppViewContainer"] {background: #0b1625;}
-    [data-testid="stHeader"] {background: #0b1625;}
-    .kicker {font-size: .72rem; letter-spacing:.15em; font-weight: 800; color:#e9b65f; }
-    .subtitle {color:#b2bfd0; font-size: .94rem; }
-    .sectionline { border-bottom:1px solid #304156; margin: 10px 0 16px; }
-    .peims-note {background:#15283e; border-left: 3px solid #d6a251; border-radius: 7px;
-        padding: .85rem 1.1rem; color:#dbe5ef; margin-bottom:1rem;}
-    .rule-card {padding:13px 15px; border-radius:10px; margin-bottom: 9px;
-        background:#14253b; border: 1px solid #304056;}
-    .rule-card strong {color:#f0c278;}
-    .rule-card small {color:#a9bbce;}
-    [data-testid="stTabs"] button {font-size: .89rem;}
-    [data-testid="stPlotlyChart"] {border: 1px solid #293e55; border-radius: 13px; padding: 10px 8px 2px;}
-    [data-testid="stMetric"] {min-height: 103px;}
-</style>
-""", unsafe_allow_html=True)
+
 
 
 @st.cache_data(show_spinner=False)
@@ -119,7 +95,7 @@ def flags_panel(alerts: list[dict]):
         msg = escape(a["message"])
         nxt = escape(a["next"])
         st.markdown(
-            f'<div class="rule-card"><strong>{heading}</strong><div>{msg}</div>'
+            f'<div class="peims-alert"><strong>{heading}</strong><div>{msg}</div>'
             f'<small>Suggested follow-up: {nxt}</small></div>', unsafe_allow_html=True,
         )
 
@@ -349,7 +325,7 @@ def show_analytics(result: dict):
 
 def show_reports(result: dict, workflows: dict[str, pd.DataFrame] | None = None):
     st.subheader("Draft weekly engineering report")
-    st.markdown('<div class="peims-note">This is an automatically assembled <b>rule-based report</b> for review. It is not an approved engineering document or a generative AI output.</div>', unsafe_allow_html=True)
+    st.info("Rule-based draft report for engineering review. Not an approved document or generative-AI output.")
     md = weekly_report(result)
     if workflows is not None:
         md += workflow_report_appendix(workflows, result["info"]["project_id"], result["date"])
@@ -403,9 +379,7 @@ def show_register_editor(name: str, workflows: dict[str, pd.DataFrame], project_
 def show_workflow_hub(core: dict[str, pd.DataFrame], workflows: dict[str, pd.DataFrame],
                       project_id: str, snapshot_date):
     st.subheader("Engineering workflow centre")
-    st.markdown('<div class="peims-note"><b>SANDBOX EDITING</b> · Data changes are visible only in your current session. '
-                'They are not shared, durable or approved for confidential mine records. '
-                'Use the workspace backup to save fictional changes.</div>', unsafe_allow_html=True)
+    st.info("Sandbox editing: changes exist only in this session. Use the workspace ZIP backup to retain fictional updates.")
     valid_projects = set(core["projects"]["project_id"].astype(str))
     m = workflow_metrics(workflows, project_id, snapshot_date)
     a,b,c,d = st.columns(4)
@@ -506,43 +480,69 @@ def main():
     workflows = {name: st.session_state.get("workflow_overrides", {}).get(name, base_workflows[name])
                  for name in WORKFLOW_COLUMNS}
     st.session_state["current_core"] = all_data
-    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / ANALYTICS 0.5.1</div>', unsafe_allow_html=True)
-    st.sidebar.title("Project controls")
-    st.sidebar.caption("Fictional data • No Newmont integration")
+
+    # One explicit, accessible project selector and one stable workspace navigation menu.
+    st.sidebar.markdown(render_brand(), unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="peims-sidebar-heading">ACTIVE PROJECT</div>', unsafe_allow_html=True)
     ps = all_data["projects"]
-    chosen = st.sidebar.selectbox("Active project", ps["project_id"].tolist(), format_func=lambda p: ps.loc[ps["project_id"].eq(p), "project_name"].iloc[0])
+    chosen = st.sidebar.selectbox(
+        "Active project", ps["project_id"].tolist(), label_visibility="collapsed",
+        format_func=lambda p: ps.loc[ps["project_id"].eq(p), "project_name"].iloc[0],
+        key="active_project",
+    )
+    st.sidebar.markdown('<div class="peims-sidebar-heading">WORKSPACE</div>', unsafe_allow_html=True)
+    section = st.sidebar.radio("Workspace navigation", NAVIGATION,
+                                format_func=lambda v: NAV_LABELS[v],
+                                key="workspace_navigation", label_visibility="collapsed")
     st.sidebar.divider()
-    st.sidebar.markdown("**Data status**")
-    st.sidebar.caption("Session workspace: changes must be backed up manually")
-    st.sidebar.caption("Enterprise API: separate, not connected to this public demo")
-    st.sidebar.markdown("**Reporting date**")
+    st.sidebar.markdown('<div class="peims-sidebar-heading">PREFERENCES</div>', unsafe_allow_html=True)
+    compact = st.sidebar.toggle("Compact layout", value=False, key="ui_compact")
+    st.markdown(render_css(compact), unsafe_allow_html=True)
+
     chosen_info = ps.loc[ps["project_id"].eq(chosen)].iloc[0]
-    st.sidebar.caption(pd.Timestamp(chosen_info["snapshot_date"]).strftime("%d %B %Y"))
-    st.sidebar.divider()
-    st.sidebar.info("Use this project for learning, demonstration and portfolio purposes—not real mining decisions.")
-    st.markdown('<div class="kicker">PROJECT ENGINEERING INTELLIGENCE & MANAGEMENT SYSTEM</div>', unsafe_allow_html=True)
-    st.title(escape(chosen_info["project_name"]))
-    st.markdown(f'<p class="subtitle">{escape(chosen_info["type"])}  ·  {escape(chosen_info["location"])}  ·  Reporting snapshot: {pd.Timestamp(chosen_info["snapshot_date"]):%d %b %Y}</p>', unsafe_allow_html=True)
-    st.markdown('<div class="peims-note"><b>DEMONSTRATION ONLY</b> · All budgets, activity records, equipment descriptions, and risk scores are synthetic. This is an independent portfolio prototype, not a Newmont product.</div>', unsafe_allow_html=True)
+    display_date = pd.Timestamp(chosen_info["snapshot_date"]).strftime("%d %b %Y")
+    st.sidebar.markdown('<div class="peims-sidebar-heading">WORKSPACE STATUS</div>', unsafe_allow_html=True)
+    st.sidebar.markdown(
+        "<div class='peims-sidebar-note'><strong>Sample project · Session workspace</strong>"
+        "<div style='margin-top:.3rem'>Reporting snapshot: " + escape(display_date) + "</div>"
+        "<div>Changes need a manual workspace backup.</div>"
+        "<div>Enterprise API is not connected.</div></div>", unsafe_allow_html=True,
+    )
+    st.sidebar.caption("PEIMS · UX refresh 0.5.2")
+
     try:
         result = compute(select_project(all_data, chosen))
     except Exception as exc:
-        st.error(f"The uploaded dataset has inconsistent records: {exc}. Reset your inputs under Data Studio.")
-        # Data tab stays reachable for recovery via the reset interface.
+        st.error(f"The uploaded dataset has inconsistent records: {exc}. Reset the imported records in Data studio.")
         show_data_controls(base_data)
         return
-    tabs = st.tabs(["◈ Command centre", "▤ Schedule", "◉ Cost control", "▣ Procurement", "⚑ Risks & actions", "◫ Analytics studio", "▧ Reports", "⚙ Data studio", "▦ Workflows"])
-    with tabs[0]: show_overview(result)
-    with tabs[1]: show_schedule(result)
-    with tabs[2]: show_financials(result)
-    with tabs[3]: show_procurement(result)
-    with tabs[4]: show_risks(result)
-    with tabs[5]: show_analytics(result)
-    with tabs[6]: show_reports(result, workflows)
-    with tabs[7]: show_data_controls(base_data)
-    with tabs[8]: show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
-    st.divider()
-    st.caption("PEIMS prototype 0.5.1 | Public demo remains session-only. The v0.5 persistent multiuser API is source code only and is not connected to this dashboard. No company integration or authorization. Human engineering verification is essential.")
+    header_info = chosen_info.to_dict()
+    header_info["display_date"] = display_date
+    st.markdown(render_header(header_info, result["kpi"]), unsafe_allow_html=True)
+    st.markdown(render_safety(), unsafe_allow_html=True)
+    st.markdown(render_intro(section), unsafe_allow_html=True)
+
+    # Only render the selected workspace: more usable navigation and fewer heavy
+    # charts per interaction, without altering calculation/validation behaviour.
+    if section == "Command centre":
+        show_overview(result)
+    elif section == "Schedule":
+        show_schedule(result)
+    elif section == "Cost control":
+        show_financials(result)
+    elif section == "Procurement":
+        show_procurement(result)
+    elif section == "Risks & actions":
+        show_risks(result)
+    elif section == "Analytics studio":
+        show_analytics(result)
+    elif section == "Reports":
+        show_reports(result, workflows)
+    elif section == "Workflows":
+        show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
+    elif section == "Data studio":
+        show_data_controls(base_data)
+    st.markdown(render_footer(), unsafe_allow_html=True)
 
 
 if __name__ == "__main__":

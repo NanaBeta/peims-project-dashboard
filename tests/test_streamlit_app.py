@@ -1,4 +1,4 @@
-"""Streamlit integration checks; exercised in GitHub Actions after installing dependencies."""
+"""Cloud Streamlit AppTest coverage for focused navigation and data workflows."""
 from pathlib import Path
 
 import pytest
@@ -7,27 +7,47 @@ pytest.importorskip('streamlit')
 from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / 'app.py'
+PAGES = (
+    'Command centre', 'Schedule', 'Cost control', 'Procurement',
+    'Risks & actions', 'Analytics studio', 'Reports', 'Workflows', 'Data studio',
+)
 
 
-def test_every_dashboard_module_renders_for_each_project():
+def app_test():
     at = AppTest.from_file(APP, default_timeout=90).run()
     assert not at.exception, [str(e.message) for e in at.exception]
-    assert len(at.tabs) >= 9
     assert len(at.sidebar.selectbox) == 1
-    for pid in ('UGV-001', 'DWP-002'):
-        at.sidebar.selectbox[0].set_value(pid).run()
-        assert not at.exception, [str(e.message) for e in at.exception]
-        assert len(at.tabs) >= 9
-        assert len(at.metric) >= 10
-        assert len(at.button) >= 1  # reset and import controls
-        assert len(at.file_uploader) >= 2
+    assert len(at.sidebar.radio) == 1
+    return at
 
 
-def test_valid_data_import():
-    at = AppTest.from_file(APP, default_timeout=90).run()
+@pytest.mark.parametrize('project_id', ('UGV-001', 'DWP-002'))
+def test_every_workspace_page_renders_with_each_project(project_id):
+    at = app_test()
+    at.sidebar.selectbox[0].set_value(project_id).run()
     assert not at.exception
-    root = APP.parent
-    csv = (root / 'data' / 'activities.csv').read_bytes()
+    for page in PAGES:
+        at.sidebar.radio[0].set_value(page).run()
+        assert not at.exception, (project_id, page, [str(e.message) for e in at.exception])
+        assert at.sidebar.radio[0].value == page
+        if page in ('Command centre', 'Schedule', 'Cost control'):
+            assert len(at.metric) >= 3
+    assert len(at.tabs) >= 4  # Workflow subtabs replace the old global 9-tab ribbon.
+
+
+def test_compact_layout_still_renders():
+    at = app_test()
+    toggles = [w for w in at.sidebar.toggle if w.label == 'Compact layout']
+    assert len(toggles) == 1
+    toggles[0].set_value(True).run()
+    assert not at.exception
+
+
+def test_valid_data_import_from_data_studio():
+    at = app_test()
+    at.sidebar.radio[0].set_value('Data studio').run()
+    assert not at.exception
+    csv = (APP.parent / 'data' / 'activities.csv').read_bytes()
     dataset_controls = [w for w in at.selectbox if w.label == 'Dataset']
     assert len(dataset_controls) == 1
     dataset_controls[0].set_value('activities').run()

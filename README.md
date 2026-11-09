@@ -1,6 +1,6 @@
 # PEIMS — Project Engineering Intelligence & Management System
 
-**Version 0.5: public sample-data dashboard and separate persistent multiuser API foundation (not deployed).**
+**Version 0.5.2: professional UI refresh for the sample-data dashboard; persistent enterprise API foundation remains separate and undeployed.**
 
 PEIMS is an independent fictional engineering portfolio prototype, **not a Newmont system**. No company approval, enterprise integration, operational protection function, or data access is implied.
 
@@ -86,3 +86,8 @@ tests/                    Local, CI and API security tests
 The public demonstration now includes: (1) recorded progress S-curves, (2) activity-level baseline/actual dumbbells, (3) dependency-modelled criticality timeline, (4) earned-value/actual-cost variance waterfall, (5) work-package schedule-versus-cost exposure scatter, (6) PO date/value delivery map, and (7) a probability × impact risk severity matrix. A dedicated **Analytics Studio** adds owner drill-down and work-package detail. All figures use coherent severity colors, hover context, and explicit metric assumptions.
 
 The weekly S-curve contains historical reported points **only**; no future forecasts are invented. The risk matrix uses color for P×I score and text for the observed open-risk count (they are not interchangeable). The cost waterfall is a reconciliation of EV and AC, not a financial cash-flow projection. The prototype remains demo-only with synthetic records and no company connection.
+
+
+## Professional interface refresh (v0.5.2)
+
+The public Streamlit front end now uses sidebar workspace navigation instead of nine compressed horizontal tabs. A structured project header, exception indicators, more consistent KPIs/chart containers, a compact-view preference, and responsive styles improve review and navigation. Select a section in the sidebar to render its content. This is a **presentation update**; analytical methods, data sources, and the enterprise API are unchanged. See [UI_GUIDE.md](UI_GUIDE.md) and [RELEASE_NOTES_v0.5.2.md](RELEASE_NOTES_v0.5.2.md).
