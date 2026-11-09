@@ -1,0 +1,9 @@
+risk_id,project_id,risk,category,probability,impact,owner,mitigation,status
+VR01,UGV-001,Main fan shipment may delay mechanical installation,Schedule,4,5,Procurement Lead,Confirm shipping milestones and evaluate approved resequencing,Open
+VR02,UGV-001,Electrical interface mismatch during commissioning,Technical,3,4,Electrical Engineer,Conduct interface review with OEM and commissioning team,Open
+VR03,UGV-001,Restricted underground work access,HSE / Access,3,5,Site Superintendent,Coordinate permits and approved access plan,Open
+VR04,UGV-001,Foundation acceptance documentation outstanding,Quality,2,3,Civil Contractor,Close punch list with authorized inspector,Closed
+DR01,DWP-002,Pump package late at site,Schedule,4,4,Procurement Lead,"Confirm delivery, unloading arrangements and contingencies",Open
+DR02,DWP-002,Insufficient sump water handling capacity,Technical,2,5,Technical Team,Verify duty point and redundancy against design requirements,Open
+DR03,DWP-002,Pipework access conflict,HSE / Access,3,3,Site Superintendent,Review access plan and coordinate work fronts,Open
+DR04,DWP-002,SCADA points not finalised,Interfaces,2,3,Controls Team,Approve I/O list before integration,Open
