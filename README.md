@@ -1,6 +1,6 @@
 # PEIMS — Project Engineering Intelligence & Management System
 
-**Version 0.4: prototype with a public sample-data dashboard and a separate enterprise API foundation.**
+**Version 0.5: public sample-data dashboard and separate persistent multiuser API foundation (not deployed).**
 
 PEIMS is an independent fictional engineering portfolio prototype, **not a Newmont system**. No company approval, enterprise integration, operational protection function, or data access is implied.
 
@@ -8,11 +8,20 @@ PEIMS is an independent fictional engineering portfolio prototype, **not a Newmo
 
 | Component | Location | What works now | Limits |
 |---|---|---|---|
-| Streamlit demonstrator | `app.py` | Existing v0.3 workflows + dependency-constrained schedule illustration and CPI cost forecast | Public demo has no login, database or inter-user persistence; only fictional records |
+| Streamlit demonstrator | `app.py` | Existing v0.3 workflows + v0.4 dependency-constrained schedule illustration and CPI cost forecast | Public demo has no login, database or inter-user persistence; only fictional records |
 | Static GitHub Pages preview | `index.html` | Earlier read-only sample dashboard | Frozen preview; does not show new v0.4 modules |
-| FastAPI enterprise foundation | `enterprise/main.py` | OIDC JWT authentication, project membership roles, PostgreSQL schema/migration, activity/RFI/cost endpoints, optimistic versioning, audit events | Requires a separately provisioned PostgreSQL database, identity provider, TLS and service hosting; **NOT** running as part of Streamlit |
+| FastAPI enterprise foundation | `enterprise/main.py` | OIDC JWT authentication, project membership administration, PostgreSQL migrations, persistent activity/RFI/cost/action/document registers, optimistic versioning, audit events | Requires a separately provisioned PostgreSQL database, identity provider, TLS and service hosting; **NOT** running as part of Streamlit |
 
-## New in v0.4
+## New in v0.5
+
+- **Persistent workspace endpoints:** new PostgreSQL-backed actions and engineering document metadata registers, with project-specific access and concurrent-edit checks.
+- **Multiuser membership administration:** manager-only add/list/change/revoke endpoints with versioned updates, own-account protections and change audit metadata.
+- **Operational readiness:** separate database readiness endpoint, enhanced trusted provisioning CLI, migration `0002_workspace`, and disposable-migration tests.
+- **Still isolated from the public app:** the existing Streamlit front end remains session-only; the authenticated API requires approved Postgres/IdP/hosting and is not yet a live multiuser web application.
+
+See [RELEASE_NOTES_v0.5.md](RELEASE_NOTES_v0.5.md), [STAGING_ACCEPTANCE.md](STAGING_ACCEPTANCE.md) and [ENTERPRISE_SETUP.md](ENTERPRISE_SETUP.md).
+
+## Previously added in v0.4
 
 - **Limited critical-path analysis:** finish-to-start links, non-negative whole-day lags, baseline not-before starts, cycle detection, earliest dates, total float and critical activities. The calculations are **not** a Primavera P6 replacement, do not respect work calendars or resources and do not reschedule from measured construction progress.
 - **Cost-at-completion scenario:** CPI continuation EAC, ETC, and VAC. Unspent commitments are reported separately from actual costs; calculations require approved baselines and project controls review.
@@ -56,14 +65,17 @@ workflow.py               Existing session workflow registers
 project_controls.py       v0.4 limited CPM and CPI forecast methods
 data/dependencies.csv     Fictional finish-to-start scheduling links
 enterprise/main.py        REST API application (not a Streamlit service)
+enterprise/workspace.py   v0.5 membership, action and document endpoints
+enterprise/permissions.py Shared project-scoped permissions and audit metadata
 enterprise/models.py      Database schema
 enterprise/auth.py        Verifies OIDC access tokens
 enterprise/database.py    PostgreSQL-only DB configuration
 enterprise/manage.py      Trusted terminal-only provisioning
-enterprise/migrations/    Alembic schema version 0001
+enterprise/migrations/    Alembic schema versions 0001 and 0002
 alembic.ini               Database migration entrypoint
 requirements-api.txt      Additional enterprise service dependencies
 ENTERPRISE_SETUP.md       Setup and verification instructions
 SECURITY.md               Threat model, guardrails and limitations
+STAGING_ACCEPTANCE.md     PostgreSQL/identity/security staging gate
 tests/                    Local, CI and API security tests
 ```
