@@ -79,3 +79,10 @@ SECURITY.md               Threat model, guardrails and limitations
 STAGING_ACCEPTANCE.md     PostgreSQL/identity/security staging gate
 tests/                    Local, CI and API security tests
 ```
+
+
+## Professional analytics upgrade (v0.5.1)
+
+The public demonstration now includes: (1) recorded progress S-curves, (2) activity-level baseline/actual dumbbells, (3) dependency-modelled criticality timeline, (4) earned-value/actual-cost variance waterfall, (5) work-package schedule-versus-cost exposure scatter, (6) PO date/value delivery map, and (7) a probability × impact risk severity matrix. A dedicated **Analytics Studio** adds owner drill-down and work-package detail. All figures use coherent severity colors, hover context, and explicit metric assumptions.
+
+The weekly S-curve contains historical reported points **only**; no future forecasts are invented. The risk matrix uses color for P×I score and text for the observed open-risk count (they are not interchangeable). The cost waterfall is a reconciliation of EV and AC, not a financial cash-flow projection. The prototype remains demo-only with synthetic records and no company connection.

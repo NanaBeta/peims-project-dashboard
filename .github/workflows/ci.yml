@@ -16,6 +16,6 @@ jobs:
       - name: Run analytics, project controls, API security and Streamlit smoke tests
         run: python -m pytest tests/ -q
       - name: Compile check
-        run: python -m compileall -q app.py analytics.py workflow.py project_controls.py enterprise/
+        run: python -m compileall -q app.py analytics.py visuals.py workflow.py project_controls.py enterprise/
       - name: Test offline static preview
         run: node scripts/test_preview.js
