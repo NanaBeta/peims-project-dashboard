@@ -28,7 +28,9 @@ def test_valid_data_import():
     assert not at.exception
     root = APP.parent
     csv = (root / 'data' / 'activities.csv').read_bytes()
-    at.selectbox[-1].set_value('activities').run()
+    dataset_controls = [w for w in at.selectbox if w.label == 'Dataset']
+    assert len(dataset_controls) == 1, 'Dataset selector not found'
+    dataset_controls[0].set_value('activities').run()
     at.file_uploader[0].upload('activities.csv', csv, 'text/csv').run()
     matching = [b for b in at.button if 'Validate and apply' in b.label]
     assert matching
