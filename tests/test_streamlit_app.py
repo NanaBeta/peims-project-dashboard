@@ -57,3 +57,20 @@ def test_valid_data_import_from_data_studio():
     assert matching
     matching[0].click().run()
     assert not at.exception
+
+
+def test_overview_quick_navigation_uses_same_workspace_selector():
+    at = app_test()
+    assert at.sidebar.radio[0].value == "Command centre"
+    shortcut = [w for w in at.button if w.label.startswith("Schedule ·")]
+    assert len(shortcut) == 1
+    shortcut[0].click().run()
+    assert not at.exception, [str(e.message) for e in at.exception]
+    assert at.sidebar.radio[0].value == "Schedule"
+    at.sidebar.radio[0].set_value("Command centre").run()
+    assert not at.exception
+    report = [w for w in at.button if w.label == "Reports & exports"]
+    assert len(report) == 1
+    report[0].click().run()
+    assert not at.exception
+    assert at.sidebar.radio[0].value == "Reports"

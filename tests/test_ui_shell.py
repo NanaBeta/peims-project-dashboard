@@ -46,3 +46,17 @@ def test_styles_are_closed_responsive_and_compact_is_real():
     assert 'WORKSPACE' in render_brand() or 'PROJECT INTELLIGENCE' in render_brand()
     assert 'No Newmont integration' in render_safety()
     assert 'Public demo data is not persistent' in render_footer()
+
+
+def test_polished_header_progress_explains_actual_vs_baseline():
+    p = {"project_name": "Demo", "type": "Engineering", "location": "Fictional",
+         "project_id": "DEMO-1", "display_date": "09 Nov 2026"}
+    html = render_header(p, {"actual_pct": 61.3, "planned_pct": 78.4,
+                             "progress_gap": -17.1, "open_high_risks": 1})
+    assert 'Recorded completion' in html
+    assert 'Linear baseline marker' in html
+    assert 'aria-valuenow="61.3"' in html
+    assert 'width:61.3%' in html
+    assert 'left:78.4%' in html
+    assert '-17.1 pp' in html
+    assert 'peims-progress-value adverse' in html
