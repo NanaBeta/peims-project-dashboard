@@ -75,7 +75,7 @@ def chart_style(fig, height: int = 340):
     fig.update_layout(
         height=height,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#dce7f1", size=12), margin=dict(t=18, b=28, l=22, r=18),
+        font=dict(size=12), margin=dict(t=18, b=28, l=22, r=18),
         legend=dict(orientation="h", y=1.13, x=0),
         xaxis=dict(gridcolor="rgba(150,165,190,.16)", zerolinecolor="#556478"),
         yaxis=dict(gridcolor="rgba(150,165,190,.16)", zerolinecolor="#556478"),
@@ -497,6 +497,12 @@ def main():
     st.sidebar.divider()
     st.sidebar.markdown('<div class="peims-sidebar-heading">PREFERENCES</div>', unsafe_allow_html=True)
     compact = st.sidebar.toggle("Compact layout", value=False, key="ui_compact")
+    st.sidebar.markdown(
+        '<div class="peims-theme-tip"><strong>☀️ Light / 🌙 Dark</strong><div>'
+        'Choose your appearance from the app menu <strong>⋮ → Settings → Appearance</strong> '
+        '(Light, Dark, or System). Tables and charts follow the selected theme.</div></div>',
+        unsafe_allow_html=True,
+    )
     st.markdown(render_css(compact), unsafe_allow_html=True)
 
     chosen_info = ps.loc[ps["project_id"].eq(chosen)].iloc[0]
@@ -508,7 +514,7 @@ def main():
         "<div>Changes need a manual workspace backup.</div>"
         "<div>Enterprise API is not connected.</div></div>", unsafe_allow_html=True,
     )
-    st.sidebar.caption("PEIMS · UX refresh 0.5.2")
+    st.sidebar.caption("PEIMS · Adaptive theme 0.5.3")
 
     try:
         result = compute(select_project(all_data, chosen))

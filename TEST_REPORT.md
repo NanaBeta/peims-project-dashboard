@@ -1,3 +1,7 @@
+## v0.5.3 Light/Dark UI testing
+
+Dual palette definitions, typography contrast, widget/button palette contrast, CSS token usage and Plotly chart color legibility are covered by tests/test_theme.py. GitHub CI also checks the Streamlit config parser, the complete project controls suite, and dashboard render smoke tests. The final live appearance needs browser review in Light and Dark modes.
+
 # PEIMS v0.4 verification status
 
 ## Local checks — 9 November 2026

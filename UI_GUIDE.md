@@ -1,29 +1,17 @@
-# PEIMS v0.5.2 — UI design guide
+# PEIMS interface — v0.5.3
 
-## Structure
+## Light / Dark appearance
 
-The sidebar holds **project context** and **workspace navigation**. The main area has a project identity panel, a persistent data-safety note, a section header, and selected analyses/workflows.
+Use **⋮ → Settings → Appearance** in the running Streamlit app and select **System, Light, or Dark**. The sidebar's Preferences section explains these steps. This uses native Streamlit theming (including tables, dropdowns, charts and forms) instead of a CSS-only imitation. There is no separate sidebar theme toggle.
 
-| Screen | Primary question |
-|---|---|
-| Command centre | Which exceptions and performance indicators need attention? |
-| Planning & schedule | Which activities are slipping, and what does the limited CPM model indicate? |
-| Cost & commercial | How are EV, AC, CPI and illustrative completion costs trending? |
-| Procurement | Which orders are late, expensive, or critical? |
-| Risks & actions | Which open risks and actions require attention? |
-| Analytics studio | How do schedule and cost exposures vary by responsible owner? |
-| Reports | What source-based draft can be exported for review? |
-| Workflows | Which contractors, RFIs and document metadata need updating? |
-| Data studio | What session-local demo datasets are in use? |
+The dark preset retains PEIMS navy colors; the light preset uses a pale-gray page, white cards and an ink-blue type palette. Compact layout remains independent.
 
-## Visual rules
+## Acceptance checklist
 
-- Dark navy foundation, restrained warm-amber interactive accent, teal for progress, and red/amber for flagged conditions.
-- Clear distinction between *snapshot date* and real time; no implied live telemetry.
-- Status badges identify exception **categories**, not an overall performance certification.
-- User-controlled compact layout, no new destructive controls, and HTML-escaped project details.
-- Desktop responsive defaults plus single-column/compact treatments on narrow screens; the Streamlit mobile sidebar can be collapsed.
+1. Check every workspace in both Light and Dark, including hover labels, chart axes, document registers, native data editors, and notification banners.
+2. Switch projects and check light/dark presentation at narrow viewport widths.
+3. Select System to follow OS preferences.
+4. Recheck schedule, cost, and import calculations.
+5. Never upload actual Newmont/company-sensitive information to this public demonstration.
 
-## Data & safety limits
-
-All records are fictional. Public Streamlit runs session-only; ZIP export/restore is necessary to save manual changes. Backend PostgreSQL/OIDC modules exist as separate source but are not connected to this UI. No actual Newmont project documents, identities, costs, mine layouts, or security data belong in this demonstration.
+Custom chart annotations may require a widget action or refresh after switching appearance on some Streamlit versions.

@@ -13,10 +13,10 @@ NAVY = '#0b1625'
 GRID = 'rgba(156,181,204,.18)'
 INK = '#dce7f1'
 MUTED = '#a2b7cb'
-TEAL = '#40c9b9'    # actual / favourable
-GOLD = '#f0ba66'    # baseline / caution
-RED = '#f4777b'     # delay / adverse
-BLUE = '#80acdc'    # reference / neutral
+TEAL = '#208F85'    # actual / favourable
+GOLD = '#B27C26'    # baseline / caution
+RED = '#C9525C'     # delay / adverse
+BLUE = '#467CB9'    # reference / neutral
 GREY = '#71879a'
 
 
@@ -26,8 +26,8 @@ def _style(fig: go.Figure, height: int = 380, legend: bool = True) -> go.Figure:
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=22, r=18, t=35, b=38),
-        font=dict(family='Arial, sans-serif', size=12, color=INK),
-        hoverlabel=dict(bgcolor='#1b3046', font=dict(color='#fff', size=12)),
+        font=dict(family='Arial, sans-serif', size=12),
+        hoverlabel=dict(font=dict(size=12)),
         legend=dict(orientation='h', y=1.15, x=0, bgcolor='rgba(0,0,0,0)'),
         showlegend=legend,
         hovermode='closest',
@@ -59,7 +59,7 @@ def progress_s_curve(history: pd.DataFrame, snapshot: pd.Timestamp) -> go.Figure
                            text=f'Latest reported gap {gap:+.1f} pp',
                            showarrow=True, arrowhead=2, ax=-100, ay=48,
                            font=dict(color=RED if gap < 0 else TEAL, size=11),
-                           bgcolor='#15283e', bordercolor=GRID, borderpad=5)
+                           bgcolor='rgba(125,145,165,.15)', bordercolor=GRID, borderpad=5)
     fig.update_yaxes(title='Weighted completion (%)', range=[0, 105], ticksuffix='%')
     fig.update_xaxes(title='Reporting week')
     return _style(fig, 385)

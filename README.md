@@ -1,3 +1,7 @@
+## New in v0.5.3 — Adaptive light and dark interface
+
+Use the **top-right app menu → Settings → Appearance** to select **System, Light or Dark**. The app has native Streamlit theme presets for both modes, chart colors legible in both, and theme-aware custom cards. See [UI guide](UI_GUIDE.md).
+
 # PEIMS — Project Engineering Intelligence & Management System
 
 **Version 0.5.2: professional UI refresh for the sample-data dashboard; persistent enterprise API foundation remains separate and undeployed.**

@@ -1,10 +1,40 @@
+# PEIMS native Streamlit theme presets: ⋮ → Settings → Appearance.
 [theme]
 base = "dark"
-primaryColor = "#E7B65D"
+font = "sans serif"
+showSidebarBorder = true
+
+[theme.light]
+primaryColor = "#86540B"
+backgroundColor = "#F7F9FC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#15263B"
+linkColor = "#86540B"
+borderColor = "#D7E0EB"
+chartCategoricalColors = ["#087E75", "#86540B", "#C0444A", "#275C91", "#6E55A0"]
+
+[theme.light.sidebar]
+backgroundColor = "#EEF2F7"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#15263B"
+borderColor = "#D7E0EB"
+primaryColor = "#86540B"
+
+[theme.dark]
+primaryColor = "#976118"
 backgroundColor = "#0B1322"
 secondaryBackgroundColor = "#15253A"
 textColor = "#EDF4FB"
-font = "sans serif"
+linkColor = "#E2B66C"
+borderColor = "#2C3E53"
+chartCategoricalColors = ["#45C8B7", "#E8B564", "#F4777B", "#80ACDC", "#B49BE1"]
+
+[theme.dark.sidebar]
+backgroundColor = "#0E192A"
+secondaryBackgroundColor = "#192A40"
+textColor = "#EDF4FB"
+borderColor = "#2C3E53"
+primaryColor = "#976118"
 
 [server]
 headless = true
