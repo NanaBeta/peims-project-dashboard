@@ -1,8 +1,8 @@
 """PEIMS enterprise SQLAlchemy models. Database migrations are mandatory in deployments."""
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from decimal import Decimal
-from sqlalchemy import String, ForeignKey, UniqueConstraint, CheckConstraint, Integer, DateTime, Numeric, JSON, Index
+from sqlalchemy import String, ForeignKey, UniqueConstraint, CheckConstraint, Integer, DateTime, Numeric, JSON, Index, Date
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -24,6 +24,7 @@ class Member(Base):
     project_id: Mapped[str] = mapped_column(String(64), ForeignKey('projects.id', ondelete='CASCADE'), primary_key=True)
     principal_sub: Mapped[str] = mapped_column(String(255), primary_key=True)
     role: Mapped[str] = mapped_column(String(12), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     __table_args__ = (CheckConstraint("role IN ('viewer','engineer','manager')", name='member_role'),)
 
 class Activity(Base):
@@ -69,3 +70,39 @@ class AuditEvent(Base):
     changed_fields: Mapped[list] = mapped_column(JSON, nullable=False)
     happened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     __table_args__ = (Index('ix_audit_project_time', 'project_id', 'happened_at'),)
+
+
+class ActionItem(Base):
+    """Persistent follow-up register. No raw documents or sensitive files."""
+    __tablename__ = 'action_items'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    reference: Mapped[str] = mapped_column(String(64), nullable=False)
+    summary: Mapped[str] = mapped_column(String(300), nullable=False)
+    assigned_sub: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    priority: Mapped[str] = mapped_column(String(12), nullable=False, default='medium')
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default='open')
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (
+        UniqueConstraint('project_id', 'reference', name='uq_action_project_reference'),
+        CheckConstraint("priority IN ('low','medium','high','critical')", name='action_priority'),
+        CheckConstraint("status IN ('open','in_progress','blocked','done')", name='action_status'),
+        Index('ix_action_project_status', 'project_id', 'status'),
+    )
+
+class DocumentRecord(Base):
+    """Document metadata only: no actual attachment bytes, CAD or confidential drawings."""
+    __tablename__ = 'document_records'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    reference: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False, default='A')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='draft')
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (
+        UniqueConstraint('project_id', 'reference', name='uq_document_project_reference'),
+        CheckConstraint("status IN ('draft','in_review','approved','superseded')", name='document_status'),
+        Index('ix_document_project_status', 'project_id', 'status'),
+    )

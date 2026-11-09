@@ -488,7 +488,7 @@ def main():
     workflows = {name: st.session_state.get("workflow_overrides", {}).get(name, base_workflows[name])
                  for name in WORKFLOW_COLUMNS}
     st.session_state["current_core"] = all_data
-    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / CONTROLS 0.4</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="kicker">⚒  PEIMS / CONTROLS 0.5</div>', unsafe_allow_html=True)
     st.sidebar.title("Project controls")
     st.sidebar.caption("Fictional data • No Newmont integration")
     ps = all_data["projects"]
@@ -523,7 +523,7 @@ def main():
     with tabs[6]: show_data_controls(base_data)
     with tabs[7]: show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
     st.divider()
-    st.caption("PEIMS prototype 0.4 | Limited CPM and CPI cost forecast added. Session-only public demo; separate enterprise API source is not deployed. No multiuser authentication or Newmont integration here. Human engineering verification is essential.")
+    st.caption("PEIMS prototype 0.5 | Public demo remains session-only. The v0.5 persistent multiuser API is source code only and is not connected to this dashboard. No company integration or authorization. Human engineering verification is essential.")
 
 
 if __name__ == "__main__":

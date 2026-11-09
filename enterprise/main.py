@@ -8,33 +8,20 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from enterprise.database import get_db
+from enterprise.database import get_db, session_factory
 from enterprise.auth import Identity, get_identity
 from enterprise.models import Project, Member, Activity, RFI, CostLine, AuditEvent
+from enterprise.permissions import membership, audited
+from enterprise.workspace import router as workspace_router
+from sqlalchemy import text
 from enterprise.schemas import ProjectOut, ActivityOut, ActivityCreate, ProgressUpdate, RFIOut, RFICreate, RFIUpdate, CostOut, CostCreate, CostUpdate
 
-app = FastAPI(title='PEIMS enterprise API (prototype)', version='0.4.0', docs_url=None, redoc_url=None)
+app = FastAPI(title='PEIMS enterprise API (staging foundation)', version='0.5.0', docs_url=None, redoc_url=None)
 
 @app.get('/healthz')
 def healthz():
     return {'status':'up', 'service':'peims-api', 'note':'Liveness only; not proof of DB readiness'}
 
-
-def membership(db:Session, project_id:str, identity: Identity, writable:bool=False, finance:bool=False) -> Member:
-    member = db.get(Member, (project_id, identity.sub))
-    if member is None:
-        # Avoid confirming existence of project resources to outsiders.
-        raise HTTPException(status_code=404, detail='Project not found')
-    if finance and member.role != 'manager':
-        raise HTTPException(status_code=403, detail='Manager role required')
-    if writable and member.role not in {'engineer','manager'}:
-        raise HTTPException(status_code=403, detail='Engineer or manager role required')
-    return member
-
-
-def audited(db:Session, project_id:str, actor:str, event:str, entity_id:str, fields:list[str]):
-    db.add(AuditEvent(id=str(uuid4()),project_id=project_id, actor_sub=actor,
-                      event_type=event,entity_id=entity_id,changed_fields=fields))
 
 @app.get('/v1/projects', response_model=list[ProjectOut])
 def list_projects(identity: Identity = Depends(get_identity), db: Session = Depends(get_db)):
@@ -139,3 +126,17 @@ def audit_events(project_id:str, identity:Identity=Depends(get_identity),db:Sess
     return [{'id':e.id,'actor_sub':e.actor_sub,'event_type':e.event_type,
              'entity_id':e.entity_id,'changed_fields':e.changed_fields,
              'happened_at':e.happened_at.isoformat()} for e in events]
+
+
+@app.get('/readyz')
+def readyz():
+    """Staging database readiness without exposing credentials or service details."""
+    try:
+        with session_factory()() as db:
+            db.execute(text('SELECT 1'))
+        return {'status': 'ready'}
+    except Exception:
+        raise HTTPException(status_code=503, detail='Database not ready') from None
+
+
+app.include_router(workspace_router)
