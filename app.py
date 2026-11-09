@@ -334,10 +334,10 @@ def show_analytics(result: dict):
     l,r=st.columns([1.15,1],gap='large')
     with l:
         st.markdown('**Schedule performance · selected work packages**')
-        st.plotly_chart(schedule_variance(filtered),use_container_width=True)
+        st.plotly_chart(schedule_variance(filtered), use_container_width=True, key="analytics_schedule_variance")
     with r:
         st.markdown('**Financial exposure · selected work packages**')
-        st.plotly_chart(cost_exposure_quadrant(filtered,result['info']['currency']),use_container_width=True)
+        st.plotly_chart(cost_exposure_quadrant(filtered,result['info']['currency']), use_container_width=True, key='analytics_cost_exposure')
     st.caption('Drill-down filter applies only to the two analytical charts and selected-owner KPI cards. Main project reports remain based on the complete project data.')
     st.dataframe(df_display(filtered.sort_values('variance_pp'),
                  {'activity_id':'ID','activity':'Activity','owner':'Owner',
