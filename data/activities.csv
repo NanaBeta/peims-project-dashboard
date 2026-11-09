@@ -1,0 +1,18 @@
+activity_id,project_id,wbs,activity,owner,start_date,finish_date,weight,actual_pct,baseline_budget
+V01,UGV-001,1.1,Engineering design review,Design Team,2026-08-20,2026-09-05,8,100,250000
+V02,UGV-001,1.2,Survey and concrete foundations,Civil Contractor,2026-08-26,2026-09-25,15,100,480000
+V03,UGV-001,2.1,Main fan package procurement,Procurement Lead,2026-08-25,2026-10-25,22,85,1100000
+V04,UGV-001,2.2,MCC and electrical design,Electrical Engineer,2026-09-05,2026-09-30,10,100,300000
+V05,UGV-001,3.1,Mechanical fan installation,Mechanical Contractor,2026-10-27,2026-11-18,15,40,800000
+V06,UGV-001,3.2,Cable containment and cabling,Electrical Contractor,2026-10-10,2026-11-20,12,60,500000
+V07,UGV-001,3.3,Protection and controls integration,Controls Team,2026-11-10,2026-12-05,9,0,420000
+V08,UGV-001,4.1,Integrated testing and commissioning,Commissioning Lead,2026-12-06,2026-12-16,6,0,280000
+V09,UGV-001,4.2,Operator training and handover,Operations Representative,2026-12-17,2026-12-22,3,0,120000
+D01,DWP-002,1.1,Detailed pump system design,Design Team,2026-10-01,2026-10-15,12,100,200000
+D02,DWP-002,1.2,Hydrological and survey verification,Technical Team,2026-10-03,2026-10-20,8,100,180000
+D03,DWP-002,2.1,Pump and motor procurement,Procurement Lead,2026-10-12,2026-11-12,28,75,850000
+D04,DWP-002,3.1,Sump excavation and civil works,Civil Contractor,2026-10-20,2026-11-20,20,55,700000
+D05,DWP-002,3.2,Electrical feeder design,Electrical Engineer,2026-11-01,2026-11-10,7,70,220000
+D06,DWP-002,3.3,Rising main pipework installation,Mechanical Contractor,2026-11-08,2026-12-05,12,15,380000
+D07,DWP-002,4.1,SCADA and controls integration,Controls Team,2026-11-20,2026-12-12,6,0,200000
+D08,DWP-002,4.2,Testing and commissioning,Commissioning Lead,2026-12-13,2026-12-20,7,0,180000
