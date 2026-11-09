@@ -1,0 +1,21 @@
+name: PEIMS demonstration checks
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest
+      - name: Static and Streamlit integration tests
+        run: python -m pytest tests/ -q
+      - name: Compile check
+        run: python -m compileall -q app.py analytics.py
+      - name: Test offline preview functions (Node.js)
+        run: node scripts/test_preview.js
