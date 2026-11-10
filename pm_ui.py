@@ -348,6 +348,7 @@ def show_work_management(core:dict, project_id:str, snapshot, raw_dependencies:p
     tasks=all_tasks.loc[all_tasks['project_id'].eq(project_id)].copy()
     logs=st.session_state['pm_time_logs']
     metrics=task_metrics(all_tasks,logs,project_id,snapshot)
+    print('DEBUG_PM_METRICS_DONE',metrics,file=sys.stderr,flush=True)
     st.caption('Task management demo · project-scoped · session-only · separate from approved baseline activities')
     if st.session_state.pop('pm_success',None):
         st.success('Work item saved in this session.')
@@ -356,6 +357,7 @@ def show_work_management(core:dict, project_id:str, snapshot, raw_dependencies:p
                                    ('Overdue at snapshot',metrics['overdue']),('Milestones',metrics['milestones'])]):
         c.metric(label,value)
     create_task_form(tasks,project_id,snapshot,set(core['projects']['project_id']))
+    print('DEBUG_PM_CREATE_FORM_DONE',file=sys.stderr,flush=True)
     tabs=['Board','List','Timeline','Calendar','Dependencies & CPM','Workload','Time & rules']
     view=st.radio('Work view',tabs,horizontal=True,key=f'pm_view_{project_id}')
     if view in ('Board','List','Timeline','Calendar'):
