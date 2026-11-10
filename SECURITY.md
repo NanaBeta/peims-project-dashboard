@@ -28,3 +28,8 @@
 ## v0.8 collaborative work-management safeguards
 
 The new API uses project-membership checks on each request, read-only viewers, per-project engineer/manager writes, composite DB keys for task parents/assignees/dependencies, optimistic task versions, and author-bound append-only comments/time logs. The public demo remains unauthenticated and isolated. New comments can contain Markdown or HTML-like text; future clients **must render it as escaped text**, never as trusted HTML. `@mentions` are stored as plain text only. The API does not transmit notifications or attachments. Time entries enforce a 24-hour limit per person **per project** per day, not across all organizations. Production requires approved cross-project workload controls, rate limits, retention/deletion policies, DB RLS assessment, OIDC integration tests, PostgreSQL race tests and a formal privacy/security review.
+
+
+## v0.8.1 Enterprise console
+
+The private browser client is a same-origin server-mediated application. Raw OIDC tokens remain server-only during sign-in; no passwords, OAuth credentials, or access tokens are written to localStorage, browser cookies, or the database. PostgreSQL stores a SHA-256 session-handle digest; the browser holds a random Secure/HttpOnly `__Host-` cookie. Every project action passes existing membership and role checks, and state mutations require a CSRF header. The front end renders untrusted project text via `textContent`, and responses apply CSP/anti-framing/no-sniff protections. A professional security review, deployment controls, centralized logout integration, rate limiting, retention and infrastructure hardening remain mandatory for production.

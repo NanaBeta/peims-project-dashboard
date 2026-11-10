@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>PEIMS | Enterprise Workspace</title>
+  <link rel="stylesheet" href="/console/assets/console.css">
+  <script src="/console/assets/console.js" defer></script>
+</head>
+<body>
+  <div id="login" class="login-screen" hidden>
+    <div class="login-panel">
+      <div class="logo-mark">P</div>
+      <p class="eyebrow">PEIMS ENTERPRISE</p>
+      <h1>One workspace for your project team.</h1>
+      <p>Sign in through your organization's approved identity provider to access projects, tasks, comments and time records.</p>
+      <a class="button primary" href="/console/login">Sign in securely</a>
+      <p class="note">No company information is available without a permitted account. The public demonstration is separate.</p>
+    </div>
+  </div>
+
+  <div id="app" class="shell" hidden>
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand"><div class="logo-mark">P</div><div><b>PEIMS</b><small>ENTERPRISE WORKSPACE</small></div></div>
+      <div class="nav-section">YOUR PROJECT</div>
+      <label for="projectPicker" class="visually-hidden">Choose project</label>
+      <select id="projectPicker" aria-label="Active project"></select>
+      <div class="nav-section">WORKSPACES</div>
+      <nav aria-label="Workspaces">
+        <button class="nav-link selected" data-page="home">⌂ <span>Home</span></button>
+        <button class="nav-link" data-page="tasks">☷ <span>Tasks &amp; schedule</span></button>
+      </nav>
+      <div class="sidebar-bottom"><span class="network-dot"></span>Authenticated enterprise API<br><small>Project-scoped · audit-enabled</small></div>
+    </aside>
+    <main class="main" id="main">
+      <header class="topbar">
+        <div><span class="eyebrow" id="topEyebrow">PROJECT WORKSPACE</span><h1 id="topTitle">Overview</h1></div>
+        <div class="top-actions">
+          <button id="refresh" class="button subtle" type="button">↻ <span>Refresh</span></button>
+          <button id="newTask" class="button primary" type="button">+ New task</button>
+          <button id="logout" class="button subtle" type="button">Sign out</button>
+        </div>
+      </header>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <section id="homePage">
+        <div class="hero">
+          <div><span class="eyebrow">WELCOME BACK</span><h2>Make progress visible.<br>Keep everyone aligned.</h2><p id="heroSubtitle">Your authorized project workspace, backed by persistent records.</p><button id="openTasks" class="button primary" type="button">Manage tasks <span aria-hidden="true">→</span></button></div>
+          <div class="hero-inset"><small>OPEN WORK</small><strong id="heroOpen">—</strong><span>Tasks needing attention</span></div>
+        </div>
+        <div class="stat-grid" id="stats" aria-label="Project work metrics"></div>
+        <div class="section-head"><div><h2>Project priorities</h2><p>Active or blocked tasks in the selected project.</p></div><button id="allTasks" class="button subtle" type="button">View work board →</button></div>
+        <div id="attention" class="simple-list"></div>
+      </section>
+
+      <section id="tasksPage" hidden>
+        <div class="section-head toolbar-title"><div><h2>Work management</h2><p>One set of records across board, list, timeline and calendar.</p></div><span class="quiet" id="pageInfo">Showing project tasks</span></div>
+        <div class="tools">
+          <div class="view-tabs" role="group" aria-label="Task view">
+            <button data-view="board" class="view-tab active">Board</button>
+            <button data-view="list" class="view-tab">List</button>
+            <button data-view="timeline" class="view-tab">Timeline</button>
+            <button data-view="calendar" class="view-tab">Calendar</button>
+          </div>
+          <label class="search-wrap"> <span class="visually-hidden">Search tasks</span><input type="search" id="taskSearch" placeholder="Search tasks, owners, reference…" autocomplete="off"></label>
+          <select id="statusFilter" aria-label="Filter by status"><option value="">All statuses</option><option value="todo">To do</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select>
+        </div>
+        <div id="taskContent" class="task-content"></div>
+        <div class="pager"><button id="prevPage" class="button subtle">← Previous</button><span id="pagingLabel"></span><button id="nextPage" class="button subtle">Next →</button></div>
+      </section>
+      <footer class="footnote">PEIMS Enterprise · Shared records require authorized PostgreSQL and OIDC deployment · The project task timeline is not an approved P6 baseline.</footer>
+    </main>
+  </div>
+
+  <dialog id="taskDialog" aria-labelledby="taskDialogHeading">
+    <form id="taskForm" class="modal-form">
+      <header><div><p class="eyebrow">PROJECT TASK</p><h2 id="taskDialogHeading">Create a task</h2></div><button type="button" data-close="taskDialog" class="icon-button" aria-label="Close dialog">×</button></header>
+      <div class="form-grid">
+        <label>Reference <input name="reference" required maxlength="64" placeholder="TASK-001"></label>
+        <label>Task name <input name="title" required maxlength="200" placeholder="Review installation drawings"></label>
+        <label>Type <select name="kind"><option value="task">Task</option><option value="subtask">Subtask</option><option value="milestone">Milestone</option></select></label>
+        <label>Parent task <select name="parent_id" id="parentTask"><option value="">None</option></select></label>
+        <label>Start date <input name="start_date" type="date" required></label>
+        <label>Due date <input name="due_date" type="date" required></label>
+        <label>Priority <select name="priority"><option value="medium">Medium</option><option value="low">Low</option><option value="high">High</option><option value="critical">Critical</option></select></label>
+        <label>Estimate (hours) <input name="estimate_hours" type="number" min="0" max="100000" step="0.25" value="8"></label>
+        <label class="wide">Owner (authorized user ID, optional) <input name="assigned_sub" maxlength="255" autocomplete="off" placeholder="Leave blank to assign later"></label>
+        <label class="wide">Description <textarea name="description" rows="3" maxlength="2000" placeholder="Work to be completed"></textarea></label>
+      </div>
+      <div class="form-actions"><button type="button" class="button subtle" data-close="taskDialog">Cancel</button><button type="submit" class="button primary">Create task</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="detailDialog" aria-labelledby="detailHeading" class="detail-dialog">
+    <div class="detail-shell">
+      <header class="detail-top"><div><p id="detailReference" class="eyebrow"></p><h2 id="detailHeading"></h2></div><button class="icon-button" type="button" data-close="detailDialog" aria-label="Close task details">×</button></header>
+      <div class="detail-body">
+        <form id="editForm">
+          <div class="form-grid">
+            <label>Status <select name="status"><option value="todo">To do</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select></label>
+            <label>Priority <select name="priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label>
+            <label>Completion (%) <input name="progress_pct" type="number" min="0" max="100" step="1"></label>
+            <label>Due date <input name="due_date" type="date"></label>
+          </div>
+          <p id="taskMeta" class="quiet"></p>
+          <p id="taskDescription" class="task-description"></p>
+          <button class="button primary" type="submit" id="saveTask">Save changes</button>
+        </form>
+        <section class="detail-section"><h3>Comments</h3><div id="comments" class="discussion"></div><form id="commentForm" class="inline-form"><label class="visually-hidden" for="commentText">Comment</label><input id="commentText" name="body" placeholder="Add a project comment" maxlength="2000"><button class="button subtle" type="submit">Post</button></form></section>
+        <section class="detail-section"><h3>Time entries</h3><div id="timeEntries" class="discussion"></div><form id="timeForm" class="inline-form"><label class="visually-hidden" for="timeDate">Work date</label><input id="timeDate" type="date" name="work_date"><label class="visually-hidden" for="timeHours">Hours</label><input id="timeHours" type="number" min="0.01" max="24" step="0.25" name="hours" placeholder="Hours" required><button class="button subtle" type="submit">Log</button></form></section>
+        <section class="detail-section"><h3>Predecessors</h3><div id="predecessors" class="discussion"></div><form id="depForm" class="inline-form"><label class="visually-hidden" for="predecessorChoice">Predecessor task</label><select id="predecessorChoice" name="predecessor_id"><option value="">Choose predecessor</option></select><button class="button subtle" type="submit">Link</button></form><p class="quiet">Finish-to-start links. Relationships cannot cross projects.</p></section>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>

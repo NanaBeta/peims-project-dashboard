@@ -1,3 +1,7 @@
+## NEW v0.8.1 — Authenticated enterprise console (source release; not deployed)
+
+A private, same-origin `/console/` web UI now connects to the persistent v0.8 work-management API through server-side OIDC sessions. Project-specific Home, task board, list, planned timeline, calendar, task updates, comments and signed time records are supported. No browser access tokens, no automatic live data or migration from the public Streamlit demo. See [release notes](RELEASE_NOTES_v0.8.1.md) and [deployment guide](ENTERPRISE_CONSOLE_v081.md).
+
 ## v0.8 — Persistent task and collaboration API foundation (separate service)
 
 The enterprise FastAPI source now provides durable project-scoped work items, version-checked updates, dependency links, signed time logs, comments, and audited project summaries, plus migration `0004_work_management`. All API routes require OIDC access tokens and explicit project membership. This implementation is **not deployed or connected** to the public Streamlit demonstration, which continues to store changes in the current browser session. See [v0.8 release notes](RELEASE_NOTES_v0.8.md) and [staging setup](ENTERPRISE_SETUP.md).

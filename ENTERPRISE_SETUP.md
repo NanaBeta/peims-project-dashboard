@@ -181,3 +181,8 @@ All work-item and comment content should be rendered as escaped text by a future
 3. Test persistence after service restart, restore of encrypted backups, audit retention, least-privilege DB credentials, app-level logs and database-level tenant safeguards.
 4. Build a future **private authenticated frontend** using supported OAuth code exchange. Do **not** connect the public Streamlit app, put raw tokens into UI text inputs, or enable broad CORS without an approved threat review.
 5. Prepare an explicit, validated migration path for earlier session ZIP work data. No legacy data is silently imported.
+
+
+## v0.8.1: authenticated browser frontend
+
+The separate enterprise `/console/` interface is implemented in source, **not enabled** on the public Streamlit site. It uses a confidential OIDC authorization-code + PKCE exchange, short-lived server-side login sessions, CSRF checks and the existing v0.8 project-authorization handlers. Run `0005_console_sessions` **only after PostgreSQL staging backup**. See [full staging deployment steps](ENTERPRISE_CONSOLE_v081.md). The existing direct `/v1` API continues to require API-audience bearer tokens; the console uses its own verified ID token exclusively for login and does not pass that ID token to the API as authorization.
