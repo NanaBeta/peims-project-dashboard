@@ -16,10 +16,10 @@ def sample(project_id='UGV-001'):
 
 
 def test_all_home_cards_have_routes_and_descriptions():
-    assert len(HOME_CHOICES)==7
-    assert len({c.target for c in HOME_CHOICES})==7
+    assert len(HOME_CHOICES)==8
+    assert len({c.target for c in HOME_CHOICES})==8
     assert HOME_CHOICES[0].label=='Manage schedule'
-    assert {c.target for c in HOME_CHOICES}=={'Schedule','Cost control','Procurement','Risks & actions','Documents','Reports','Spreadsheet studio'}
+    assert {c.target for c in HOME_CHOICES}=={'Schedule','Cost control','Procurement','Risks & actions','Documents','Reports','Spreadsheet studio','Work management'}
 
 
 def test_home_metrics_grounded_in_project_data():

@@ -23,6 +23,8 @@ from sheet_engine import (SHEET_NAMES, EDITABLE_SHEETS, SHEET_LABELS, SHEET_KEYS
 from smart_entry import suggestions, new_record_id, SUGGESTED_FIELDS, validate_smart_inputs
 from bi_engine import SOURCE_SPECS, source_frame, build_analysis
 from gantt import gantt_figure, gantt_rows
+from pm_ui import show_work_management, initialize_work_items
+from work_items import task_metrics
 from experience import HOME_CHOICES, home_choice_counts, priority_actions, activity_status, render_welcome
 
 # Streamlit Cloud can hot-reload app.py while retaining a previous imported ui_shell.
@@ -159,7 +161,7 @@ def show_shortcuts(result: dict) -> None:
 
 
 def open_gantt_workspace() -> None:
-    """Open a dedicated Gantt view, not a previous activity-list selection."""
+    """Open the dedicated Gantt, not the old activity-list default."""
     st.session_state.pop('peims_activity_detail', None)
     st.session_state['schedule_mode'] = 'Gantt'
     change_workspace('Schedule')
@@ -186,7 +188,8 @@ def show_home(result: dict, project: dict, workflows: dict) -> None:
     """A true start page: choose a job first, open analysis only on demand."""
     st.markdown(render_welcome(project, result["kpi"]), unsafe_allow_html=True)
     st.markdown('### Project timeline · at a glance')
-    st.caption('Planned activity windows with reported completion fraction filled in. The dashed line marks the project reporting snapshot; no actual work dates or forecasts are inferred.')
+    st.caption('Baseline activity windows with the reported completion fraction filled in. '
+               'The dashed line marks the project reporting snapshot; this is not an actual-date or forecast Gantt.')
     st.plotly_chart(gantt_figure(result['activities'], result['date'], compact=True, limit=6),
                     use_container_width=True, key='home_project_gantt',
                     config={'displayModeBar': False, 'displaylogo': False})
@@ -279,14 +282,16 @@ def show_activity_details(result: dict, row: pd.Series) -> None:
 
 
 def show_schedule_gantt(result: dict) -> None:
-    """Interactive Gantt with owner/status filters and activity detail navigation."""
-    activities, kpi = result['activities'], result['kpi']
+    """Interactive, baseline-scoped Gantt with filters and detail navigation."""
+    activities = result['activities']
+    kpi = result['kpi']
     m1, m2, m3 = st.columns(3)
     m1.metric('Scheduled activities', len(activities))
     m2.metric('Behind baseline >10 pp', int(kpi['slipping_activities']))
     m3.metric('Physical completion', f"{kpi['actual_pct']:.1f}%")
     st.markdown('### Gantt · project schedule')
-    st.caption('Bar length = planned start–finish window; coloured fill = reported % complete (not recorded actual work dates). The dashed line is the project reporting date.')
+    st.caption('Bar length = baseline start–finish window; coloured fill = reported % complete '
+               '(not recorded actual work dates). The dashed line is the project reporting date.')
     owners = sorted(activities['owner'].dropna().astype(str).unique().tolist())
     f1, f2 = st.columns(2)
     with f1:
@@ -321,14 +326,16 @@ def show_schedule_gantt(result: dict) -> None:
                       on_click=open_activity_record, args=(choice,), use_container_width=True)
         st.download_button('Export displayed timeline CSV',
                            safe_csv(shown[['activity_id','wbs','activity','owner','start_date','finish_date',
-                                           'planned_pct','actual_pct','variance_pp','gantt_status']]),
-                           file_name=f'PEIMS_{result["info"]["project_id"]}_Gantt.csv', mime='text/csv')
-    st.caption('For dependency links, critical-path analysis and network finish dates, choose **Analysis**. This demo has no actual start/finish history, approved revised baseline, or resource-levelled schedule.')
+                                  'planned_pct','actual_pct','variance_pp','gantt_status']]),
+                           file_name=f'PEIMS_{result["info"]["project_id"]}_Gantt.csv',
+                           mime='text/csv')
+    st.caption('For dependency links, critical-path analysis and network finish dates, choose **Analysis**. '
+               'This demo has no actual start/finish history, approved revised baseline, or resource-levelled schedule.')
 
 
 def show_schedule_journey(result: dict) -> None:
     view = st.radio('Schedule view', ['Gantt', 'Activities', 'Analysis'], horizontal=True,
-                    key='schedule_mode', help='Explore Gantt, individual activities, or deeper CPM analytics')
+                    key='schedule_mode', help='Explore the Gantt, activity details, or deeper CPM analytics')
     if view == 'Gantt':
         show_schedule_gantt(result)
         return
@@ -532,7 +539,8 @@ def show_overview(result: dict):
     st.plotly_chart(gantt_figure(result['activities'], result['date']),
                     use_container_width=True, key='command_centre_gantt',
                     config={'displayModeBar': False, 'displaylogo': False})
-    st.caption('Grey: planned window · coloured fill: reported completion fraction · dashed line: reporting date. This view does not infer actual dates or an approved revised baseline.')
+    st.caption('Grey: scheduled window · coloured fill: reported completion fraction · '
+               'dashed line: reporting date. This view does not infer actual dates or an approved revised baseline.')
     st.button('Explore Gantt and activity details →', key='command_open_gantt',
               on_click=open_gantt_workspace, use_container_width=True)
     left, right = st.columns([1.65, 1], gap="large")
@@ -549,6 +557,16 @@ def show_overview(result: dict):
         st.metric("Overdue actions", k['overdue_actions'])
     st.subheader("Priority exception register")
     flags_panel(make_alerts(result)[:5])
+    if 'pm_tasks' in st.session_state:
+        pid=str(info['project_id'])
+        task_kpi=task_metrics(st.session_state['pm_tasks'],st.session_state['pm_time_logs'],pid,result['date'])
+        st.markdown('#### Work-item status')
+        x,y,z=st.columns(3)
+        x.metric('Open tasks',task_kpi['open'])
+        y.metric('Overdue tasks',task_kpi['overdue'])
+        z.metric('Logged demo hours',f"{task_kpi['logged_hours']:.1f} h")
+        st.button('Manage tasks and milestones →',key='overview_pm_open',
+                  on_click=change_workspace,args=('Work management',),use_container_width=True)
 
 def show_schedule(result: dict):
     acts, k = result["activities"], result["kpi"]
@@ -1214,7 +1232,7 @@ def main():
     with st.sidebar.expander("Workspace information", expanded=False):
         st.caption(f"Fictional project · snapshot {display_date}")
         st.caption("Session-only edits; export backups manually. No enterprise API connection.")
-    st.sidebar.caption("PEIMS · Gantt & guided workspaces 0.6.4")
+    st.sidebar.caption("PEIMS · Work management 0.7 · demo mode")
 
     try:
         result = compute(select_project(all_data, chosen))
@@ -1222,6 +1240,7 @@ def main():
         st.error(f"The uploaded dataset has inconsistent records: {exc}. Reset the imported records in Data studio.")
         show_data_controls(base_data)
         return
+    initialize_work_items(all_data, get_sample_dependencies())
     header_info = chosen_info.to_dict()
     header_info["display_date"] = display_date
     if section == "Home":
@@ -1257,6 +1276,8 @@ def main():
             show_data_controls(base_data)
         elif section == "Spreadsheet studio":
             show_spreadsheet_studio(all_data, workflows, chosen, result)
+        elif section == "Work management":
+            show_work_management(all_data, chosen, chosen_info["snapshot_date"], get_sample_dependencies())
     st.markdown(render_safety(), unsafe_allow_html=True)
     st.markdown(render_footer(), unsafe_allow_html=True)
 

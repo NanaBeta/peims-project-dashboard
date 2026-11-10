@@ -20,6 +20,7 @@ class HomeChoice:
 
 HOME_CHOICES = (
     HomeChoice("Schedule", "Manage schedule", "Activities, milestones and progress", "📅"),
+    HomeChoice("Work management", "Manage tasks", "Kanban, calendar, dependencies and workload", "▤"),
     HomeChoice("Cost control", "Review costs", "Budget, expenditure and forecasts", "◈"),
     HomeChoice("Procurement", "Track deliveries", "Orders, suppliers and late equipment", "▤"),
     HomeChoice("Risks & actions", "Resolve issues", "Actions, risks and responsible owners", "⚑"),
@@ -43,6 +44,7 @@ def home_choice_counts(result: dict, workflows: dict) -> dict[str, str]:
         "Documents": f'{n_docs} documents',
         "Reports": "Weekly project summary",
         "Spreadsheet studio": "9 project worksheets",
+        "Work management": "Board · list · calendar",
     }
 
 

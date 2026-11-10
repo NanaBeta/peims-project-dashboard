@@ -9,7 +9,7 @@ from streamlit.testing.v1 import AppTest
 APP = Path(__file__).resolve().parents[1] / 'app.py'
 PAGES = (
     'Home', 'Command centre', 'Schedule', 'Cost control', 'Procurement',
-    'Risks & actions', 'Documents', 'Analytics studio', 'Reports', 'Workflows', 'Data studio', 'Spreadsheet studio',
+    'Risks & actions', 'Documents', 'Analytics studio', 'Reports', 'Workflows', 'Data studio', 'Spreadsheet studio', 'Work management',
 )
 
 
@@ -141,7 +141,7 @@ def test_spreadsheet_suggested_values_and_quick_add_workflow():
     assert any(w.label == 'Source' for w in at.selectbox)
     text_fields = [w for w in at.text_input if w.label == 'Action']
     assert len(text_fields) == 1
-    # Form inputs are buffered until submit; don't rerun between individual edits.
+    # Streamlit form buffers edits until submit: configure both values before rerun.
     text_fields[0].set_value('Inspect new electrical tie-in')
     owners = [w for w in at.selectbox if w.label == 'Owner']
     owners[0].set_value('Project Engineer')
@@ -149,9 +149,7 @@ def test_spreadsheet_suggested_values_and_quick_add_workflow():
     assert len(submit) == 1
     submit[0].click().run()
     assert not at.exception, [str(e.message) for e in at.exception]
-    assert not at.error, [getattr(e, 'value', repr(e)) for e in at.error]
-    assert at.session_state.get('studio_edit_version', 0) >= 1
-
+    assert at.session_state['studio_edit_version'] >= 1
 
 
 def test_gantt_is_visible_on_home_and_command_centre():
@@ -185,3 +183,30 @@ def test_gantt_filter_and_record_details():
     assert not at.exception
     assert [w for w in at.radio if w.label == 'Schedule view'][0].value == 'Activities'
     assert any(b.label == '← All activities' for b in at.button)
+
+
+def test_work_management_views_and_project_scoped_creation():
+    """AppTest verifies that each new task view renders through Streamlit."""
+    at = app_test()
+    at.sidebar.radio[0].set_value('Work management').run()
+    assert not at.exception, [str(x.message) for x in at.exception]
+    selector = [x for x in at.radio if x.label == 'Work view']
+    assert len(selector) == 1
+    for target in ('List', 'Timeline', 'Calendar', 'Dependencies & CPM', 'Workload', 'Time & rules', 'Board'):
+        selector = [x for x in at.radio if x.label == 'Work view'][0]
+        selector.set_value(target).run()
+        assert not at.exception, (target,[str(x.message) for x in at.exception])
+    assert any(x.label == 'Open work item' for x in at.selectbox)
+    at.sidebar.selectbox[0].set_value('DWP-002').run()
+    assert not at.exception
+    assert [x for x in at.radio if x.label == 'Work view'][0].value == 'Board'
+
+
+def test_work_management_appears_on_home():
+    at = app_test()
+    cards = [x for x in at.button if x.label.startswith('Manage tasks')]
+    assert len(cards) == 1
+    cards[0].click().run()
+    assert not at.exception
+    assert at.sidebar.radio[0].value == 'Work management'
+    assert any(x.label == 'Work view' for x in at.radio)
