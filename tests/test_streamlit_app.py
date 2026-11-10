@@ -189,6 +189,7 @@ def test_work_management_views_and_project_scoped_creation():
     """AppTest verifies that each new task view renders through Streamlit."""
     at = app_test()
     at.sidebar.radio[0].set_value('Work management').run()
+    at.run()  # let AppTest settle a navigation-triggered rerun
     assert not at.exception, [str(x.message) for x in at.exception]
     selector = [x for x in at.radio if x.label == 'Work view']
     assert len(selector) == 1, {
@@ -214,6 +215,7 @@ def test_work_management_appears_on_home():
     cards = [x for x in at.button if x.label.startswith('Manage tasks')]
     assert len(cards) == 1
     cards[0].click().run()
+    at.run()  # settle navigation callback before checking page widgets
     assert not at.exception
     assert at.sidebar.radio[0].value == 'Work management'
     assert any(x.label == 'Work view' for x in at.radio)
