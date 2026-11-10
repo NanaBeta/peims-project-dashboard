@@ -129,3 +129,9 @@ The project header now distinguishes actual and baseline with a target marker, w
 Open **Spreadsheets & BI → Worksheet grid**, choose a supported worksheet and click the **+ Add row** control at the bottom of the grid. Add a unique ID (for example `ACTION-NEW-001`) and the required fields, then select **Validate & apply worksheet changes**. The selected project is set automatically. Existing IDs cannot be changed or deleted in the sheet.
 
 Adding an activity also creates its matching cost-ledger row (zero actual/committed costs); to enter expenses, open **Cost ledger** afterwards. Standalone cost-row creation is disabled because PEIMS currently requires one cost row per activity. You can also append rows to an exported Excel workbook and import the selected sheet through **Excel exchange**. All changes remain session-only until backed up.
+
+## v0.6.3 — Organization directories (backend foundation, not live Streamlit)
+
+PEIMS now contains a **secure-by-default hybrid-suggestion backend**: project-local values remain the default, while an organization can curate and approve reusable values for its own authorized projects. An organization admin must approve shared values; a project manager explicitly links and opts the project in; a user must be a member of both the project and the organization before the API returns shared suggestions. Existing projects remain unlinked and off after migration. No automatic harvesting of project names/owners/suppliers into the organization directory occurs.
+
+The public Streamlit demo has no enterprise token, database or organization account. It continues to suggest values **only from the selected demo project**, with global application presets where applicable. Real shared suggestions will require deploying the separate enterprise service and building an OIDC-authenticated interface. See [ENTERPRISE_SETUP.md](ENTERPRISE_SETUP.md) and [RELEASE_NOTES_v0.6.3.md](RELEASE_NOTES_v0.6.3.md).
