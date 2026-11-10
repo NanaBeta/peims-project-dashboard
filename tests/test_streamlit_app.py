@@ -192,6 +192,12 @@ def test_work_management_views_and_project_scoped_creation():
     at.run()  # let AppTest settle a navigation-triggered rerun
     assert not at.exception, [str(x.message) for x in at.exception]
     selector = [x for x in at.radio if x.label == 'Work view']
+    print("PEIMS07_RENDER_DEBUG", "PAGE", at.sidebar.radio[0].value,
+          "RADIOS", [x.label for x in at.radio],
+          "METRICS", [(x.label,x.value) for x in at.metric],
+          "MARKDOWNS", [str(x.value)[:180] for x in at.markdown][-18:],
+          "ERRORS", [str(x.message) for x in at.error],
+          "EXCEPTIONS", [str(x.message) for x in at.exception])
     assert len(selector) == 1, {
         'page': at.sidebar.radio[0].value,
         'main_radio_labels': [x.label for x in at.radio],
