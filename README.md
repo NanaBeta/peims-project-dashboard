@@ -1,3 +1,17 @@
+# PEIMS v0.5.5 — Guided Workspaces
+
+The **new Home page** is the default start screen. Select **Manage schedule**, **Review costs**, **Track deliveries**, **Resolve issues**, **Open documents**, or **Prepare a report** to enter a focused workspace. Select **Analysis** inside workspaces for full charts. The sidebar and the `← Home` button provide navigation.
+
+This is a **fictional demonstration**: changes are session-specific, not shared or saved in a live enterprise database. The enterprise API source remains separate and is not connected to this public Streamlit frontend.
+
+The Light/Dark/System theme remains available from Streamlit Settings → Appearance.
+
+## Test
+
+Run `pytest tests/ -q` and `python -m compileall -q app.py ui_shell.py experience.py`. GitHub CI installs Streamlit and executes the AppTest flows.
+
+---
+
 ## New in v0.5.3 — Light and Dark appearance
 
 The app supports two native Streamlit visual themes. Use **⋮ → Settings → Appearance** to select **System**, **Light** or **Dark**; see [UI_GUIDE.md](UI_GUIDE.md) and [release notes](RELEASE_NOTES_v0.5.3.md). The old fixed dark-only CSS has been replaced with palette-aware custom components and chart styling.

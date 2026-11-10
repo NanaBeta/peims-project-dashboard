@@ -8,6 +8,7 @@ from __future__ import annotations
 from html import escape
 
 NAVIGATION = (
+    "Home",
     "Command centre",
     "Schedule",
     "Cost control",
@@ -15,11 +16,14 @@ NAVIGATION = (
     "Risks & actions",
     "Analytics studio",
     "Reports",
+    "Documents",
     "Workflows",
     "Data studio",
 )
 
 NAV_LABELS = {
+    "Home": "⌂   Home",
+    "Documents": "▦   Documents",
     "Command centre": "◈   Command centre",
     "Schedule": "▤   Planning & schedule",
     "Cost control": "◉   Cost & commercial",
@@ -32,6 +36,8 @@ NAV_LABELS = {
 }
 
 PAGE_INFO = {
+    "Home": ("WELCOME", "Home", "Choose a workspace to get started."),
+    "Documents": ("ENGINEERING DOCUMENTS", "Documents", "Find and review drawing metadata, revisions and responsible engineers."),
     "Command centre": ("PORTFOLIO INTELLIGENCE", "Command centre", "Monitor performance, exceptions and decisions from one consolidated view."),
     "Schedule": ("PROJECT DELIVERY", "Planning & schedule", "Inspect actual completion, dependencies, criticality and baseline slippage."),
     "Cost control": ("PROJECT COMMERCIAL", "Cost & commercial", "Connect financial performance, earned value and forecast scenarios."),
@@ -194,8 +200,48 @@ def render_css(compact: bool = False) -> str:
       color:var(--peims-ink);margin:.5rem 0;font-size:.83rem;line-height:1.5;}
     .peims-alert strong {color:var(--peims-ink);font-size:.8rem;}
     .peims-alert small {display:block;margin-top:.24rem;opacity:.78;}
+    /* Navigation-first experience: generous but functional, with one task per page. */
+    .peims-welcome {display:flex;align-items:center;justify-content:space-between;
+      gap:2.2rem;flex-wrap:wrap;padding:2rem 2.1rem;border:1px solid var(--peims-border);
+      background:var(--peims-surface);border-radius:20px;margin:0 0 1.6rem;}
+    .peims-welcome-copy {flex:2 1 300px;min-width:0;}
+    .peims-welcome h1 {font-size:clamp(1.55rem,2.7vw,2.3rem) !important;
+      margin:.55rem 0 .65rem;line-height:1.2;}
+    .peims-welcome p {max-width:48rem;line-height:1.65;font-size:.94rem;opacity:.8;margin:0;}
+    .peims-welcome-progress {flex:1 1 205px;max-width:330px;min-width:190px;
+      padding:1.1rem 1.3rem;border-radius:14px;border:1px solid var(--peims-border);
+      background:var(--peims-canvas);}
+    .peims-welcome-progress strong {display:block;font-size:2.05rem;letter-spacing:-.04em;
+      line-height:1.4;font-weight:750;color:var(--peims-ink);}
+    .peims-welcome-caption {font-size:.71rem;opacity:.75;line-height:1.55;margin-top:.6rem;}
+    .peims-home-label {font-size:1.15rem;font-weight:740;margin:1.35rem 0 .22rem;}
+    .peims-home-sub {font-size:.86rem;opacity:.7;margin:0 0 1.2rem;}
+    [class*="st-key-home_card_"] {padding:1.1rem!important;border-radius:16px!important;
+      border:1px solid var(--peims-border)!important;background:var(--peims-surface);}
+    [class*="st-key-home_card_"] [data-testid="stButton"] button {
+      justify-content:space-between;min-height:45px;font-weight:720;
+      background:color-mix(in srgb,var(--peims-accent) 9%,transparent);
+      border-color:color-mix(in srgb,var(--peims-accent) 26%,var(--peims-border));
+    }
+    [class*="st-key-home_card_"] [data-testid="stButton"] button:hover {
+      background:color-mix(in srgb,var(--peims-accent) 15%,transparent);}
+    .peims-card-icon {font-size:1.4rem;line-height:1.25;margin-bottom:.5rem;}
+    .peims-card-info {font-size:.82rem;line-height:1.5;opacity:.73;min-height:2.3rem;}
+    .peims-card-count {font-size:.72rem;font-weight:650;letter-spacing:.02em;
+      color:var(--peims-accent);margin-top:.4rem;}
+    .peims-breadcrumb {font-size:.77rem;letter-spacing:.03em;opacity:.65;line-height:1.6;}
+    .peims-detail-title {font-size:1.35rem;font-weight:750;line-height:1.3;margin:.3rem 0 .65rem;}
+    [class*="st-key-peims_record_"] [data-testid="stButton"] button {
+      white-space:normal;text-align:left;justify-content:flex-start;min-height:56px;
+      line-height:1.4;font-weight:560;border-color:var(--peims-border);
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label {min-height:39px;}
     @media (max-width:800px) {
       .block-container{padding:.8rem .85rem 2.3rem;}
+      .peims-welcome {padding:1.1rem;gap:.8rem;margin-bottom:1rem;}
+      .peims-welcome-progress {max-width:none;flex-basis:100%;min-width:0;}
+      .peims-welcome h1 {font-size:1.55rem!important;}
+      [class*="st-key-home_card_"] {padding:.75rem!important;}
       .peims-hero{padding:.95rem .9rem;}
       .peims-hero-title{font-size:1.36rem;}
       .peims-progress-summary{gap:.4rem;}
