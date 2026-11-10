@@ -340,7 +340,10 @@ def _time_and_rules(tasks:pd.DataFrame,project_id:str):
 
 
 def show_work_management(core:dict, project_id:str, snapshot, raw_dependencies:pd.DataFrame):
+    import sys
+    print('DEBUG_PM_HANDLER_FUNCTION_STARTED',project_id,file=sys.stderr,flush=True)
     initialize_work_items(core,raw_dependencies)
+    print('DEBUG_PM_INITIALIZATION_DONE',file=sys.stderr,flush=True)
     all_tasks=st.session_state['pm_tasks']
     tasks=all_tasks.loc[all_tasks['project_id'].eq(project_id)].copy()
     logs=st.session_state['pm_time_logs']
