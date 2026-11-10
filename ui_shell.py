@@ -20,6 +20,7 @@ NAVIGATION = (
     "Workflows",
     "Data studio",
     "Spreadsheet studio",
+    "Work management",
 )
 
 NAV_LABELS = {
@@ -35,6 +36,7 @@ NAV_LABELS = {
     "Workflows": "▦   Workflows",
     "Data studio": "⚙   Data studio",
     "Spreadsheet studio": "▦   Spreadsheets & BI",
+    "Work management": "▤   Tasks & work management",
 }
 
 PAGE_INFO = {
@@ -50,6 +52,7 @@ PAGE_INFO = {
     "Workflows": ("ENGINEERING COORDINATION", "Workflows", "Maintain demonstration contractor, RFI and document registers."),
     "Data studio": ("DATA GOVERNANCE", "Data studio", "Inspect sample records and validate session-only data imports."),
     "Spreadsheet studio": ("DATA WORKSPACE", "Spreadsheets & BI", "Edit project registers, exchange Excel workbooks, and create focused analytical views."),
+    "Work management": ("PROJECT DELIVERY", "Tasks & work management", "Manage tasks, subtasks and milestones across board, list, calendar and timeline views."),
 }
 
 

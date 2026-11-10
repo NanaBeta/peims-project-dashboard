@@ -18,6 +18,6 @@ jobs:
       - name: Validate native Streamlit theme configuration
         run: python -m streamlit config show > /dev/null
       - name: Compile check
-        run: python -m compileall -q app.py analytics.py ui_shell.py experience.py visuals.py workflow.py project_controls.py sheet_engine.py bi_engine.py enterprise/
+        run: python -m compileall -q app.py analytics.py ui_shell.py experience.py visuals.py workflow.py project_controls.py sheet_engine.py bi_engine.py gantt.py smart_entry.py work_items.py enterprise/
       - name: Test offline static preview
         run: node scripts/test_preview.js

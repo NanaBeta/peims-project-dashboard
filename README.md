@@ -1,6 +1,6 @@
-## NEW — Gantt project timeline (v0.6.4)
+## NEW — Gantt timeline (v0.6.4)
 
-Home includes a compact activity Gantt; Command centre includes the full schedule picture; Planning & schedule → Gantt has owner/status filters, zoom, selected-activity detail and CSV export. The grey bars represent planned date windows and the coloured fills represent reported percentage completion. They do not imply observed actual work dates or forecasting. See [release notes](RELEASE_NOTES_v0.6.4.md).
+**Home** now includes an at-a-glance project Gantt, **Command centre** includes the full schedule picture, and **Planning & schedule → Gantt** provides owner/status filters, zoom, activity detail navigation and CSV export. The bars show planned date windows and reported percent completion; actual work dates and forecasts are **not** inferred. [Details](RELEASE_NOTES_v0.6.4.md).
 
 # NEW — Smart entry suggestions (v0.6.2)
 
@@ -139,3 +139,7 @@ Adding an activity also creates its matching cost-ledger row (zero actual/commit
 PEIMS now contains a **secure-by-default hybrid-suggestion backend**: project-local values remain the default, while an organization can curate and approve reusable values for its own authorized projects. An organization admin must approve shared values; a project manager explicitly links and opts the project in; a user must be a member of both the project and the organization before the API returns shared suggestions. Existing projects remain unlinked and off after migration. No automatic harvesting of project names/owners/suppliers into the organization directory occurs.
 
 The public Streamlit demo has no enterprise token, database or organization account. It continues to suggest values **only from the selected demo project**, with global application presets where applicable. Real shared suggestions will require deploying the separate enterprise service and building an OIDC-authenticated interface. See [ENTERPRISE_SETUP.md](ENTERPRISE_SETUP.md) and [RELEASE_NOTES_v0.6.3.md](RELEASE_NOTES_v0.6.3.md).
+
+## v0.7 — Tasks & work management
+
+Open **Home → Manage tasks**, or **Tasks & work management** in the sidebar. The same session task records appear in a Kanban-style Board, List, Timeline, Calendar, Dependencies & CPM, Workload and Time & rules. You can create a task, subtask or milestone, edit statuses and owners, add finish-to-start links, enter resource capacity, log hours, and set simple status-to-priority rules. Use the **Backup / restore project work records** section to export session edits in a project-scoped ZIP archive. The work-management timeline does not silently modify the separate approved activity baseline Gantt or cost ledger. This remains a fictional, session-only demo. Details: [release notes](RELEASE_NOTES_v0.7.md) and [15-feature roadmap](FEATURE_ROADMAP_15.md).
