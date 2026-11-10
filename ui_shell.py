@@ -72,7 +72,6 @@ def render_css(compact: bool = False) -> str:
     CSS tokens are supplied by Streamlit and update with its native theme.
     """
     density = """
-    .block-container { padding-top: .8rem !important; }
     [data-testid="stMetric"] { padding: .65rem .85rem !important; min-height: 78px; }
     .peims-hero { padding: 1rem 1.2rem !important; }
     """ if compact else ""
@@ -88,7 +87,9 @@ def render_css(compact: bool = False) -> str:
       font-family:Inter, ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     }
     /* Allow the actual Streamlit theme to style native data grids, forms and menus. */
-    .block-container {max-width:1500px;padding:1.2rem 1.8rem 3rem;}
+    /* Streamlit supplies the top inset via theme.paddingTop, including
+       its toolbar height. Never override .block-container padding-top. */
+    .block-container {max-width:1500px;padding-left:1.8rem;padding-right:1.8rem;padding-bottom:3rem;}
     h1,h2,h3 {letter-spacing:-.03em;}
     h1 {font-size:2rem !important;font-weight:750 !important;line-height:1.22 !important;}
     h2 {font-size:1.45rem !important;font-weight:720 !important;}
@@ -261,7 +262,7 @@ def render_css(compact: bool = False) -> str:
     }
     [data-testid="stSidebar"] [data-testid="stRadio"] label {min-height:39px;}
     @media (max-width:800px) {
-      .block-container{padding:.8rem .85rem 2.3rem;}
+      .block-container{padding-left:.85rem;padding-right:.85rem;padding-bottom:2.3rem;}
       .peims-welcome {padding:1.1rem;gap:.8rem;margin-bottom:1rem;}
       .peims-welcome-progress {max-width:none;flex-basis:100%;min-width:0;}
       .peims-welcome h1 {font-size:1.55rem!important;}
