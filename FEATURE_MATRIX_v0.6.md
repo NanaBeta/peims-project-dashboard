@@ -46,3 +46,8 @@ Every editable worksheet is a *view over the existing project records*, not its 
 - Oracle Primavera P6 Professional user guide: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm
 - P6 baseline concepts: https://primavera.oraclecloud.com/help/en/user/89344_1.htm
 - Power BI embedded analytics licensing and security: https://learn.microsoft.com/en-us/power-bi/guidance/powerbi-implementation-planning-usage-scenario-embed-for-your-organization
+
+
+### v0.6.1 — row creation support
+
+The Worksheet Grid now supports validated creation of activities, procurement orders, risks, actions, contractors, RFIs and document metadata, as well as newly added records imported from Excel. Adding an activity automatically creates its required cost-ledger entry with zero expenditures. This is a structured project register, not a general-purpose formula engine; deletion of existing records and independent financial transactions are not supported in this grid.

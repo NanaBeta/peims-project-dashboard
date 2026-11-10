@@ -1,13 +1,14 @@
 """Safe, project-scoped spreadsheet interoperability for the fictional PEIMS demo.
 
 No Excel formulas are executed, no persistent database is used, and imports cannot
-rewrite other projects or silently change record identifiers. Core validators
+rewrite other projects or silently change existing record identifiers. Core validators
 and project-control calculations are the source of truth.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from io import BytesIO
+import re
 from zipfile import BadZipFile, ZipFile
 
 import pandas as pd
@@ -46,10 +47,6 @@ def project_sheet(core: dict, workflows: dict, sheet: str, project_id: str) -> p
     return df.loc[df["project_id"].astype(str).eq(project_id)].copy().reset_index(drop=True)
 
 
-def _identity(df: pd.DataFrame, key: str) -> list[str]:
-    return sorted(df[key].astype(str).tolist())
-
-
 def _canonical(value) -> str:
     if pd.isna(value):
         return ""
@@ -63,6 +60,13 @@ def _change_events(before: pd.DataFrame, after: pd.DataFrame, key: str,
     first = before.set_index(key)
     second = after.set_index(key)
     events = []
+    for rid in second.index.difference(first.index):
+        events.append({
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "actor": "demo_session", "project_id": project_id,
+            "register": sheet, "record_id": str(rid), "action": "created",
+            "fields": ", ".join(col for col in second.columns if col != "project_id"),
+        })
     for rid in first.index:
         modified = [col for col in first.columns if col in second.columns and
                     _canonical(first.at[rid, col]) != _canonical(second.at[rid, col])]
@@ -90,30 +94,71 @@ def apply_sheet(core: dict[str, pd.DataFrame], workflows: dict[str, pd.DataFrame
     proposed = edited.loc[:, expected].copy().reset_index(drop=True)
     original = project_sheet(core, workflows, sheet, project_id)
     key = SHEET_KEYS[sheet]
-    # Identity and project scope are invariant; adding/deleting records is done
-    # through dedicated, validated workflow forms, never an unreviewed sheet edit.
-    if len(proposed) != len(original) or _identity(proposed, key) != _identity(original, key):
-        raise ValueError("Record IDs and row count must remain unchanged; use the dedicated record form")
-    if not proposed["project_id"].astype(str).eq(project_id).all():
-        raise ValueError("A worksheet cannot move records into another project")
-    ids = set(core["projects"]["project_id"].astype(str))
-    if project_id not in ids:
+    # Existing record identities cannot be renamed or deleted from a worksheet.
+    # New records are supported where project-control invariants allow them.
+    if project_id not in set(core["projects"]["project_id"].astype(str)):
         raise ValueError("Unknown project")
+    original_ids = set(original[key].astype(str))
+    if proposed[key].isna().any() or proposed[key].astype(str).str.strip().eq("").any():
+        raise ValueError(f"Every added row needs a unique {key}; please fill its ID")
+    proposed[key] = proposed[key].astype(str).str.strip()
+    if proposed[key].duplicated().any():
+        raise ValueError(f"Duplicate {key}; enter a unique identifier for every row")
+    after_ids = set(proposed[key])
+    if not original_ids.issubset(after_ids):
+        raise ValueError("Existing record IDs cannot be deleted or renamed in Spreadsheet Studio")
+    new_ids = after_ids - original_ids
+    if sheet == "costs" and new_ids:
+        raise ValueError("New cost rows are created automatically when you add an activity. Edit those rows in Cost ledger.")
+    if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,47}", rid) for rid in new_ids):
+        raise ValueError("New record IDs need 1–48 letters, digits, hyphens or underscores")
+
+    # The project field for added grid rows is filled by PEIMS; the project
+    # field of existing rows cannot be modified, and foreign projects are refused.
+    old_rows = proposed[key].isin(original_ids)
+    if not proposed.loc[old_rows, "project_id"].astype(str).eq(project_id).all():
+        raise ValueError("Existing records cannot be moved into another project")
+    new_rows = ~old_rows
+    raw_project = proposed.loc[new_rows, "project_id"]
+    if not raw_project.map(lambda x: pd.isna(x) or str(x).strip() == "" or str(x).strip() == project_id).all():
+        raise ValueError("New records must belong to the selected project")
+    proposed.loc[new_rows, "project_id"] = project_id
+    ids = set(core["projects"]["project_id"].astype(str))
+
     if sheet in WORKFLOW_COLUMNS:
         updated, events = apply_project_register(sheet, workflows[sheet], proposed, project_id, ids)
-        # apply_project_register checks workflow field types, references and statuses
+        # apply_project_register validates IDs, statuses, dates and all required fields.
         changes = dict(workflows)
         changes[sheet] = updated
         return dict(core), changes, events
+
     remaining = core[sheet].loc[~core[sheet]["project_id"].astype(str).eq(project_id)]
     combined = validated_frame(sheet, pd.concat([remaining, proposed], ignore_index=True))
     changes = dict(core)
     changes[sheet] = combined
-    # Recalculate all projects, not only the current project, before applying edits.
+    if sheet == "activities" and new_ids:
+        # Every activity must have exactly one cost row. A new activity starts
+        # with zero actual and committed cost; the ledger is editable afterwards.
+        initial_costs = pd.DataFrame([{
+            "activity_id": rid, "project_id": project_id,
+            "actual_cost": 0.0, "committed_cost": 0.0,
+        } for rid in sorted(new_ids)])
+        changes["costs"] = validated_frame("costs", pd.concat([
+            core["costs"], initial_costs
+        ], ignore_index=True))
+    # Validate whole project graph and all other projects before applying edits.
     for pid in ids:
         compute(select_project(changes, pid))
     verified = project_sheet(changes, workflows, sheet, project_id)
     events = _change_events(original, verified, key, sheet, project_id)
+    if sheet == "activities":
+        for rid in sorted(new_ids):
+            events.append({
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "actor": "demo_session", "project_id": project_id,
+                "register": "costs", "record_id": rid,
+                "action": "created", "fields": "linked cost row (initialized to zero)",
+            })
     return changes, dict(workflows), events
 
 
@@ -136,10 +181,10 @@ def workbook_bytes(core: dict, workflows: dict, project_id: str) -> bytes:
     intro.write_row("A3", ["Project", project_id])
     intro.write_row("A4", ["Scope", "Project-scoped records only; changes are not automatically synced to PEIMS."])
     intro.write_row("A5", ["Import", "Upload one selected worksheet through Spreadsheet studio → Excel exchange."])
-    intro.write_row("A6", ["Edit", "Keep record IDs, project IDs, column names, and row counts unchanged."])
+    intro.write_row("A6", ["Edit", "Keep existing record IDs and project IDs unchanged. Add rows with a new unique ID; PEIMS validates them."])
     intro.write_row("A7", ["Formulas", "Formula cells are rejected on import; calculated project KPIs remain authoritative in PEIMS."])
     intro.write_row("A8", ["Security", "Session-only edits; do not upload Newmont or other confidential information."])
-    intro.write_row("A9", ["Note", "Progress snapshots are exported for reference and cannot be edited here."])
+    intro.write_row("A9", ["Note", "Add activities to create linked zero-cost rows automatically. Progress snapshots remain read-only."])
     for row in range(3, 10):
         intro.set_row(row-1, 27)
 
