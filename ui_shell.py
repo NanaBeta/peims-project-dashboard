@@ -8,11 +8,13 @@ from __future__ import annotations
 from html import escape
 
 NAVIGATION = (
+    "Home",
     "Command centre",
     "Schedule",
     "Cost control",
     "Procurement",
     "Risks & actions",
+    "Documents",
     "Analytics studio",
     "Reports",
     "Workflows",
@@ -20,11 +22,13 @@ NAVIGATION = (
 )
 
 NAV_LABELS = {
+    "Home": "⌂   Home",
     "Command centre": "◈   Command centre",
     "Schedule": "▤   Planning & schedule",
     "Cost control": "◉   Cost & commercial",
     "Procurement": "▣   Procurement",
     "Risks & actions": "⚑   Risks & actions",
+    "Documents": "▦   Engineering documents",
     "Analytics studio": "◫   Analytics studio",
     "Reports": "▧   Reports",
     "Workflows": "▦   Workflows",
@@ -32,11 +36,13 @@ NAV_LABELS = {
 }
 
 PAGE_INFO = {
+    "Home": ("YOUR WORKSPACE", "Home", "Choose one task and follow it through."),
     "Command centre": ("PORTFOLIO INTELLIGENCE", "Command centre", "Monitor performance, exceptions and decisions from one consolidated view."),
     "Schedule": ("PROJECT DELIVERY", "Planning & schedule", "Inspect actual completion, dependencies, criticality and baseline slippage."),
     "Cost control": ("PROJECT COMMERCIAL", "Cost & commercial", "Connect financial performance, earned value and forecast scenarios."),
     "Procurement": ("SUPPLY CHAIN", "Procurement", "Follow overdue deliveries, critical equipment and purchase-order exposure."),
     "Risks & actions": ("ASSURANCE", "Risks & actions", "Prioritize open risks, accountable owners and overdue action items."),
+    "Documents": ("ENGINEERING RECORDS", "Documents", "Open document register entries and inspection of revisions."),
     "Analytics studio": ("PROJECT INTELLIGENCE", "Analytics studio", "Explore cross-discipline project controls with work-package filters."),
     "Reports": ("REPORTING", "Reports", "Generate a traceable draft based on the selected project snapshot."),
     "Workflows": ("ENGINEERING COORDINATION", "Workflows", "Maintain demonstration contractor, RFI and document registers."),
@@ -280,5 +286,5 @@ def render_safety() -> str:
 
 
 def render_footer() -> str:
-    return ("<div class='peims-footer'>PEIMS UI 0.5.4 · Fictional engineering project portfolio · "
+    return ("<div class='peims-footer'>PEIMS UI 0.5.5 · Fictional engineering project portfolio · "
             "Figures require professional verification · Public demo data is not persistent</div>")
