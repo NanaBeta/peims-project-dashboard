@@ -82,6 +82,11 @@ def test_home_to_activity_detail_and_back():
     at = app_test()
     [b for b in at.button if b.label.startswith('Manage schedule')][0].click().run()
     assert not at.exception
+    gantt_view = [w for w in at.radio if w.label == 'Schedule view']
+    assert len(gantt_view) == 1
+    assert gantt_view[0].value == 'Gantt'
+    gantt_view[0].set_value('Activities').run()
+    assert not at.exception
     items = [b for b in at.button if b.label.startswith('1.1  ')]
     assert items
     items[0].click().run()
@@ -146,3 +151,37 @@ def test_spreadsheet_suggested_values_and_quick_add_workflow():
     assert not at.exception, [str(e.message) for e in at.exception]
     assert not at.error, [getattr(e, 'value', repr(e)) for e in at.error]
     assert at.session_state.get('studio_edit_version', 0) >= 1
+
+
+
+def test_gantt_is_visible_on_home_and_command_centre():
+    at = app_test()
+    assert any(b.label == 'Open full Gantt & schedule →' for b in at.button)
+    [b for b in at.button if b.label == 'Open full Gantt & schedule →'][0].click().run()
+    assert not at.exception, [str(e.message) for e in at.exception]
+    assert at.sidebar.radio[0].value == 'Schedule'
+    gantt_view = [w for w in at.radio if w.label == 'Schedule view']
+    assert len(gantt_view) == 1 and gantt_view[0].value == 'Gantt'
+    assert any(b.label == 'Open activity →' for b in at.button)
+    at.sidebar.radio[0].set_value('Command centre').run()
+    assert not at.exception
+    assert any(b.label == 'Explore Gantt and activity details →' for b in at.button)
+    [b for b in at.button if b.label == 'Explore Gantt and activity details →'][0].click().run()
+    assert not at.exception
+    assert at.sidebar.radio[0].value == 'Schedule'
+    assert [w for w in at.radio if w.label == 'Schedule view'][0].value == 'Gantt'
+
+
+def test_gantt_filter_and_record_details():
+    at = app_test()
+    at.sidebar.radio[0].set_value('Schedule').run()
+    assert not at.exception
+    owner = [w for w in at.selectbox if w.label == 'Filter owner']
+    assert len(owner) == 1
+    owner[0].set_value('Electrical Contractor').run()
+    assert not at.exception
+    assert any(b.label == 'Open activity →' for b in at.button)
+    [b for b in at.button if b.label == 'Open activity →'][0].click().run()
+    assert not at.exception
+    assert [w for w in at.radio if w.label == 'Schedule view'][0].value == 'Activities'
+    assert any(b.label == '← All activities' for b in at.button)
