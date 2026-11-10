@@ -17,6 +17,7 @@ from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
                       normalize_for_export, make_snapshot, read_snapshot, workflow_report_appendix)
 
 from project_controls import critical_path, cost_forecast
+from experience import HOME_CHOICES, home_choice_counts, priority_actions, activity_status, render_welcome
 from ui_shell import (NAVIGATION, NAV_LABELS, attention_flags, render_css,
                       render_brand, render_header, render_intro, render_safety, render_footer)
 from visuals import (progress_s_curve, schedule_variance, dependency_timeline,
@@ -124,6 +125,300 @@ def show_shortcuts(result: dict) -> None:
                 st.button(label, key=f"peims_go_{target.replace(' ', '_').lower()}",
                           on_click=change_workspace, args=(target,), use_container_width=True,
                           help=f"Open {target} workspace")
+
+
+
+def open_activity_record(activity_id: str) -> None:
+    st.session_state["peims_activity_detail"] = activity_id
+    st.session_state["schedule_mode"] = "Activities"
+    change_workspace("Schedule")
+
+
+def open_action_record(action_id: str) -> None:
+    st.session_state["peims_action_detail"] = action_id
+    st.session_state["issues_mode"] = "Actions"
+    change_workspace("Risks & actions")
+
+
+def open_document_record(document_id: str) -> None:
+    st.session_state["peims_document_detail"] = document_id
+    change_workspace("Documents")
+
+
+def show_home(result: dict, project: dict, workflows: dict) -> None:
+    """A true start page: choose a job first, open analysis only on demand."""
+    st.markdown(render_welcome(project, result["kpi"]), unsafe_allow_html=True)
+    st.markdown('<div class="peims-home-label">What would you like to do?</div>'
+                '<p class="peims-home-sub">Choose one workspace. Detailed analysis is there when you need it.</p>',
+                unsafe_allow_html=True)
+    counts = home_choice_counts(result, workflows)
+    for start in range(0, len(HOME_CHOICES), 3):
+        cols = st.columns(3, gap="medium")
+        for col, choice in zip(cols, HOME_CHOICES[start:start + 3]):
+            with col:
+                with st.container(border=True, key=f"home_card_{choice.target.lower().replace(' ', '_').replace('&', 'and')}"):
+                    st.markdown(f'<div class="peims-card-icon" aria-hidden="true">{escape(choice.icon)}</div>',
+                                unsafe_allow_html=True)
+                    st.button(f"{choice.label}  →", key=f"home_open_{choice.target.lower().replace(' ', '_').replace('&', 'and')}",
+                              on_click=change_workspace, args=(choice.target,), use_container_width=True,
+                              help=f"Open the {choice.label.lower()} workspace")
+                    st.markdown(f'<div class="peims-card-info">{escape(choice.summary)}</div>'
+                                f'<div class="peims-card-count">{escape(counts[choice.target])}</div>',
+                                unsafe_allow_html=True)
+    st.divider()
+    st.markdown('### A few things need attention')
+    st.caption('Open an action to inspect the owner, due date and status. All records are fictional.')
+    actions = priority_actions(result)
+    if actions.empty:
+        st.success('No outstanding actions in this project snapshot.')
+    else:
+        for _, row in actions.iterrows():
+            due = pd.Timestamp(row["due_date"]).strftime('%d %b %Y')
+            label = f'{row["action"]} · {row["owner"]} · Due {due}'
+            st.button(label, key=f'home_action_{row["action_id"]}',
+                      on_click=open_action_record, args=(str(row["action_id"]),),
+                      use_container_width=True, help='Open action details')
+    a, b = st.columns([2, 1])
+    with a:
+        st.caption('Demonstration workspace · Session-only edits · No live company records')
+    with b:
+        st.button('View full project analysis →', key='home_open_command_centre',
+                  on_click=change_workspace, args=('Command centre',), use_container_width=True)
+
+
+def show_activity_details(result: dict, row: pd.Series) -> None:
+    if st.button('← All activities', key='return_activity_list'):
+        st.session_state.pop('peims_activity_detail', None)
+        st.rerun()
+    st.caption(f'ACTIVITY · {row["activity_id"]} · WBS {row["wbs"]}')
+    st.markdown(f'### {row["activity"]}')
+    st.info(f'**{activity_status(row)}** · Responsible: {row["owner"]}')
+    c1, c2, c3 = st.columns(3)
+    c1.metric('Actual completion', f'{float(row["actual_pct"]):.1f}%')
+    c2.metric('Planned completion', f'{float(row["planned_pct"]):.1f}%')
+    c3.metric('Progress gap', f'{float(row["variance_pp"]):+.1f} pp')
+    with st.container(border=True):
+        st.write('**Baseline period**')
+        st.write(f'{pd.Timestamp(row["start_date"]):%d %b %Y} — {pd.Timestamp(row["finish_date"]):%d %b %Y}')
+        st.write(f'**Work package budget:** {money(row["baseline_budget"], result["info"]["currency"])}')
+        st.write(f'**Recorded expenditure:** {money(row["actual_cost"], result["info"]["currency"])}')
+    with st.expander('Update physical completion · demonstration only', expanded=False):
+        st.caption('Edits apply only to this browser session. They do not change an approved schedule.')
+        pid = str(result['info']['project_id'])
+        activity_id = str(row['activity_id'])
+        with st.form(f'activity_detail_edit_{pid}_{activity_id}'):
+            new_pct = st.number_input('Actual completion (%)', min_value=0.0, max_value=100.0,
+                                      step=1.0, value=float(row['actual_pct']))
+            saved = st.form_submit_button('Save progress in this session')
+        if saved:
+            records = st.session_state['current_core']
+            candidate = records['activities'].copy()
+            mask = candidate['activity_id'].astype(str).eq(activity_id) & candidate['project_id'].astype(str).eq(pid)
+            if int(mask.sum()) != 1:
+                st.error('Activity not found in the selected project')
+            else:
+                candidate.loc[mask, 'actual_pct'] = float(new_pct)
+                try:
+                    candidate = validated_frame('activities', candidate)
+                    proposed = dict(records, activities=candidate)
+                    compute(select_project(proposed, pid))
+                    overrides = dict(st.session_state.get('overrides', {}))
+                    overrides['activities'] = candidate
+                    st.session_state['overrides'] = overrides
+                    log_session_change('activities', activity_id, 'progress updated', pid)
+                    st.rerun()
+                except (ValueError, TypeError, KeyError) as ex:
+                    st.error(f'Update rejected: {ex}')
+    st.caption('Baseline completion is modeled linearly; schedule analysis is illustrative.')
+
+
+def show_schedule_journey(result: dict) -> None:
+    view = st.radio('Schedule view', ['Activities', 'Analysis'], horizontal=True,
+                    key='schedule_mode', help='Choose a focused activity list or detailed schedule analytics')
+    if view == 'Analysis':
+        show_schedule(result)
+        return
+    activities = result['activities']
+    record_id = st.session_state.get('peims_activity_detail')
+    matching = activities.loc[activities['activity_id'].astype(str).eq(str(record_id))]
+    if not matching.empty:
+        show_activity_details(result, matching.iloc[0])
+        return
+    st.session_state.pop('peims_activity_detail', None)
+    cols = st.columns(3)
+    cols[0].metric('Activities', len(activities))
+    cols[1].metric('Behind baseline >10 pp', result['kpi']['slipping_activities'])
+    cols[2].metric('Schedule performance', f"{result['kpi']['spi']:.2f}" if result['kpi']['spi'] is not None else 'N/A')
+    search = st.text_input('Find an activity', placeholder='Search by activity, WBS or owner', key='activity_search')
+    filtered = activities.sort_values(['variance_pp', 'wbs'])
+    if search.strip():
+        token = search.casefold().strip()
+        filtered = filtered.loc[filtered.apply(lambda r: token in f"{r['activity']} {r['wbs']} {r['owner']}".casefold(), axis=1)]
+    st.caption(f'Select an activity to open its details · {len(filtered)} shown')
+    if filtered.empty:
+        st.info('No activities match this search.')
+    for _, row in filtered.iterrows():
+        with st.container(key=f'peims_record_activity_{row["activity_id"]}'):
+            status = activity_status(row)
+            st.button(f'{row["wbs"]}  {row["activity"]}  ·  {float(row["actual_pct"]):.0f}% complete  ·  {status}  →',
+                      key=f'view_activity_{row["activity_id"]}',
+                      on_click=open_activity_record, args=(str(row['activity_id']),),
+                      use_container_width=True)
+    st.caption('For dependency modeling, critical path and the complete register, select Analysis above.')
+
+
+def show_cost_journey(result: dict) -> None:
+    view = st.radio('Cost view', ['Overview', 'Detailed analysis'], horizontal=True, key='cost_view')
+    if view == 'Detailed analysis':
+        show_financials(result)
+        return
+    k, currency = result['kpi'], result['info']['currency']
+    a, b, c = st.columns(3)
+    a.metric('Budget at completion', money(k['budget'], currency))
+    b.metric('Recorded costs', money(k['actual_cost'], currency))
+    c.metric('Cost efficiency (CPI)', f'{k["cpi"]:.2f}' if k['cpi'] is not None else 'N/A')
+    st.markdown('### Cost outlook')
+    fc = cost_forecast(k['budget'], k['earned_value'], k['actual_cost'], k['committed_cost'])
+    if fc['eac_cpi'] is None:
+        st.info('No cost forecast is available from the current project record.')
+    else:
+        st.metric('Illustrative estimate at completion', money(fc['eac_cpi'], currency))
+        st.caption('This is a CPI-continuation scenario, not an approved project forecast.')
+    st.markdown('### Work packages')
+    summary = result['activities'][['activity', 'baseline_budget', 'actual_cost']].copy()
+    summary.columns = ['Work package', 'Budget', 'Recorded cost']
+    st.dataframe(summary, hide_index=True, use_container_width=True)
+    st.caption('Select Detailed analysis for earned-value bridges, exposure charts and model assumptions.')
+
+
+def show_procurement_journey(result: dict) -> None:
+    view = st.radio('Procurement view', ['Orders', 'Analysis'], horizontal=True, key='procurement_view')
+    if view == 'Analysis':
+        show_procurement(result)
+        return
+    p = result['procurement']
+    a, b, c = st.columns(3)
+    a.metric('Purchase orders', len(p))
+    b.metric('Overdue deliveries', result['kpi']['overdue_po'])
+    c.metric('Critical overdue', result['kpi']['critical_overdue_po'])
+    order_id = st.session_state.get('peims_order_detail')
+    found = p.loc[p['po_id'].astype(str).eq(str(order_id))]
+    if not found.empty:
+        if st.button('← All orders', key='back_to_orders'):
+            st.session_state.pop('peims_order_detail', None)
+            st.rerun()
+        row = found.iloc[0]
+        st.markdown(f'### {row["item"]}')
+        st.caption(f'PURCHASE ORDER · {row["po_id"]}')
+        with st.container(border=True):
+            st.write(f'**Supplier:** {row["supplier"]}')
+            st.write(f'**Status:** {row["status"]}')
+            st.write(f'**Expected delivery:** {pd.Timestamp(row["expected_date"]):%d %b %Y}')
+            st.write(f'**Order value:** {money(row["po_value"], result["info"]["currency"])}')
+            st.write(f'**Critical:** {row["critical"]} · **Overdue:** {bool(row["overdue"])}')
+        st.caption('Purchase order data is fictional; no live supplier integration.')
+        return
+    st.session_state.pop('peims_order_detail', None)
+    st.markdown('### Orders and deliveries')
+    for _, row in p.sort_values(['overdue', 'expected_date'], ascending=[False, True]).iterrows():
+        label = f'{row["po_id"]}  ·  {row["item"]}  ·  {row["status"]}'
+        st.button(label + '  →', key=f'open_order_{row["po_id"]}',
+                  on_click=set_order_detail, args=(str(row['po_id']),), use_container_width=True)
+    st.caption('Select Analysis for the delivery exposure visualization and full register.')
+
+
+def set_order_detail(order_id: str) -> None:
+    st.session_state['peims_order_detail'] = order_id
+
+
+def update_demo_action_status(project_id: str, action_id: str, status: str) -> None:
+    """Write to existing session overrides only, validating the whole action register."""
+    if status not in ('Open', 'In progress', 'Closed'):
+        raise ValueError('Unsupported action status')
+    records = st.session_state['current_core']
+    df = records['actions'].copy()
+    mask = df['project_id'].astype(str).eq(project_id) & df['action_id'].astype(str).eq(action_id)
+    if int(mask.sum()) != 1:
+        raise ValueError('Action not found for this project')
+    df.loc[mask, 'status'] = status
+    df = validated_frame('actions', df)
+    overrides = dict(st.session_state.get('overrides', {}))
+    overrides['actions'] = df
+    st.session_state['overrides'] = overrides
+    log_session_change('actions', action_id, f'status set to {status}', project_id)
+
+
+def show_issues_journey(result: dict) -> None:
+    view = st.radio('Issues view', ['Actions', 'Analysis'], horizontal=True, key='issues_mode')
+    if view == 'Analysis':
+        show_risks(result)
+        return
+    actions = result['actions']
+    a, b, c = st.columns(3)
+    a.metric('Action items', len(actions))
+    b.metric('Overdue actions', result['kpi']['overdue_actions'])
+    c.metric('High risks', result['kpi']['open_high_risks'])
+    action_id = st.session_state.get('peims_action_detail')
+    found = actions.loc[actions['action_id'].astype(str).eq(str(action_id))]
+    if not found.empty:
+        if st.button('← All actions', key='back_to_actions'):
+            st.session_state.pop('peims_action_detail', None)
+            st.rerun()
+        row = found.iloc[0]
+        st.caption(f'ACTION · {row["action_id"]}')
+        st.markdown(f'### {row["action"]}')
+        with st.container(border=True):
+            st.write(f'**Assigned to:** {row["owner"]}')
+            st.write(f'**Due:** {pd.Timestamp(row["due_date"]):%d %b %Y}')
+            st.write(f'**Priority:** {row["priority"]} · **Status:** {row["status"]}')
+            st.write(f'**Source:** {row["source"]}')
+            st.caption('This is a demonstration status update, not a workflow approval.')
+            pid = str(result['info']['project_id'])
+            if str(row['status']) != 'Closed':
+                st.button('Mark completed', key=f'close_action_{action_id}',
+                          on_click=update_demo_action_status, args=(pid, str(action_id), 'Closed'))
+            else:
+                st.button('Reopen action', key=f'reopen_action_{action_id}',
+                          on_click=update_demo_action_status, args=(pid, str(action_id), 'Open'))
+        return
+    st.session_state.pop('peims_action_detail', None)
+    st.markdown('### Action queue')
+    for _, row in priority_actions(result, limit=100).iterrows():
+        label = f'{row["priority"]} · {row["action"]} · {row["status"]}'
+        st.button(label + '  →', key=f'open_action_{row["action_id"]}',
+                  on_click=open_action_record, args=(str(row['action_id']),), use_container_width=True)
+    st.caption('Select Analysis for the full risk matrix and action register.')
+
+
+def show_documents_journey(core: dict, workflows: dict, project_id: str, snapshot_date) -> None:
+    valid_projects = set(core['projects']['project_id'].astype(str))
+    docs = workflows['documents'].loc[workflows['documents']['project_id'].astype(str).eq(project_id)].copy()
+    st.metric('Engineering records', len(docs))
+    document_id = st.session_state.get('peims_document_detail')
+    found = docs.loc[docs['document_id'].astype(str).eq(str(document_id))]
+    if not found.empty:
+        if st.button('← All documents', key='back_to_documents'):
+            st.session_state.pop('peims_document_detail', None)
+            st.rerun()
+        row = found.iloc[0]
+        st.caption(f'DOCUMENT · {row["document_id"]}')
+        st.markdown(f'### {row["title"]}')
+        with st.container(border=True):
+            for field, label in [('revision','Revision'), ('status','Review status'),
+                                 ('discipline','Discipline'), ('owner','Owner'),
+                                 ('reference','Reference')]:
+                st.write(f'**{label}:** {row[field]}')
+        st.info('Metadata only. This demonstration does not store or display original drawing files.')
+        return
+    st.session_state.pop('peims_document_detail', None)
+    st.markdown('### Drawing and document register')
+    st.caption('Select a record to inspect details. No uploaded drawing files are stored.')
+    for _, row in docs.sort_values(['discipline','title']).iterrows():
+        st.button(f'{row["title"]} · Rev {row["revision"]} · {row["status"]}  →',
+                  key=f'view_document_{row["document_id"]}',
+                  on_click=open_document_record, args=(str(row['document_id']),),use_container_width=True)
+    st.markdown('### Manage register')
+    show_register_editor('documents', workflows, project_id, valid_projects, snapshot_date)
 
 
 def show_overview(result: dict):
@@ -533,7 +828,7 @@ def main():
     with st.sidebar.expander("Workspace information", expanded=False):
         st.caption(f"Fictional project · snapshot {display_date}")
         st.caption("Session-only edits; export backups manually. No enterprise API connection.")
-    st.sidebar.caption("PEIMS · Workspace polish 0.5.4")
+    st.sidebar.caption("PEIMS · Guided workspaces 0.5.5")
 
     try:
         result = compute(select_project(all_data, chosen))
@@ -543,31 +838,36 @@ def main():
         return
     header_info = chosen_info.to_dict()
     header_info["display_date"] = display_date
-    st.markdown(render_header(header_info, result["kpi"]), unsafe_allow_html=True)
+    if section == "Home":
+        show_home(result, header_info, workflows)
+    else:
+        st.button('← Home', key='top_return_home', on_click=change_workspace,
+                  args=('Home',), help='Return to your PEIMS Home page')
+        st.caption(f'{chosen_info["project_name"]} · {display_date} reporting snapshot')
+        if section in ('Command centre', 'Analytics studio'):
+            st.markdown(render_header(header_info, result["kpi"]), unsafe_allow_html=True)
+        st.markdown(render_intro(section), unsafe_allow_html=True)
+        if section == "Command centre":
+            show_overview(result)
+        elif section == "Schedule":
+            show_schedule_journey(result)
+        elif section == "Cost control":
+            show_cost_journey(result)
+        elif section == "Procurement":
+            show_procurement_journey(result)
+        elif section == "Risks & actions":
+            show_issues_journey(result)
+        elif section == "Documents":
+            show_documents_journey(all_data, workflows, chosen, chosen_info["snapshot_date"])
+        elif section == "Analytics studio":
+            show_analytics(result)
+        elif section == "Reports":
+            show_reports(result, workflows)
+        elif section == "Workflows":
+            show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
+        elif section == "Data studio":
+            show_data_controls(base_data)
     st.markdown(render_safety(), unsafe_allow_html=True)
-    st.markdown(render_intro(section), unsafe_allow_html=True)
-
-    # Only render the selected workspace: more usable navigation and fewer heavy
-    # charts per interaction, without altering calculation/validation behaviour.
-    if section == "Command centre":
-        show_shortcuts(result)
-        show_overview(result)
-    elif section == "Schedule":
-        show_schedule(result)
-    elif section == "Cost control":
-        show_financials(result)
-    elif section == "Procurement":
-        show_procurement(result)
-    elif section == "Risks & actions":
-        show_risks(result)
-    elif section == "Analytics studio":
-        show_analytics(result)
-    elif section == "Reports":
-        show_reports(result, workflows)
-    elif section == "Workflows":
-        show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
-    elif section == "Data studio":
-        show_data_controls(base_data)
     st.markdown(render_footer(), unsafe_allow_html=True)
 
 

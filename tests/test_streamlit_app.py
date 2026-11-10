@@ -8,8 +8,8 @@ from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / 'app.py'
 PAGES = (
-    'Command centre', 'Schedule', 'Cost control', 'Procurement',
-    'Risks & actions', 'Analytics studio', 'Reports', 'Workflows', 'Data studio',
+    'Home', 'Command centre', 'Schedule', 'Cost control', 'Procurement',
+    'Risks & actions', 'Documents', 'Analytics studio', 'Reports', 'Workflows', 'Data studio',
 )
 
 
@@ -61,16 +61,48 @@ def test_valid_data_import_from_data_studio():
 
 def test_overview_quick_navigation_uses_same_workspace_selector():
     at = app_test()
-    assert at.sidebar.radio[0].value == "Command centre"
-    shortcut = [w for w in at.button if w.label.startswith("Schedule ·")]
-    assert len(shortcut) == 1
-    shortcut[0].click().run()
+    assert at.sidebar.radio[0].value == "Home"
+    schedule = [w for w in at.button if w.label.startswith("Manage schedule")]
+    assert len(schedule) == 1
+    schedule[0].click().run()
     assert not at.exception, [str(e.message) for e in at.exception]
     assert at.sidebar.radio[0].value == "Schedule"
-    at.sidebar.radio[0].set_value("Command centre").run()
+    back = [w for w in at.button if w.label.startswith('← Home')]
+    assert len(back) == 1
+    back[0].click().run()
     assert not at.exception
-    report = [w for w in at.button if w.label == "Reports & exports"]
+    report = [w for w in at.button if w.label.startswith("Prepare a report")]
     assert len(report) == 1
     report[0].click().run()
     assert not at.exception
     assert at.sidebar.radio[0].value == "Reports"
+
+
+def test_home_to_activity_detail_and_back():
+    at = app_test()
+    [b for b in at.button if b.label.startswith('Manage schedule')][0].click().run()
+    assert not at.exception
+    items = [b for b in at.button if b.label.startswith('1.1  ')]
+    assert items
+    items[0].click().run()
+    assert not at.exception
+    assert any(b.label == '← All activities' for b in at.button)
+    [b for b in at.button if b.label == '← All activities'][0].click().run()
+    assert not at.exception
+    assert not any(b.label == '← All activities' for b in at.button)
+
+
+def test_home_documents_and_actions_navigate():
+    at = app_test()
+    docs = [b for b in at.button if b.label.startswith('Open documents')]
+    assert len(docs) == 1
+    docs[0].click().run()
+    assert not at.exception
+    assert at.sidebar.radio[0].value == 'Documents'
+    assert any(b.label.startswith('Ventilation fan GA') for b in at.button)
+    at.sidebar.radio[0].set_value('Home').run()
+    issues = [b for b in at.button if b.label.startswith('Resolve issues')]
+    assert issues
+    issues[0].click().run()
+    assert not at.exception
+    assert at.sidebar.radio[0].value == 'Risks & actions'
