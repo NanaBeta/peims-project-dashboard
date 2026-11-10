@@ -1,0 +1,68 @@
+name: PEIMS disposable PostgreSQL staging check
+
+on:
+  push:
+    paths:
+      - 'enterprise/**'
+      - 'scripts/postgres_staging_acceptance.py'
+      - '.github/workflows/postgres-staging.yml'
+  pull_request:
+    paths:
+      - 'enterprise/**'
+      - 'scripts/postgres_staging_acceptance.py'
+      - '.github/workflows/postgres-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PEIMS_EPHEMERAL_POSTGRES_TEST: 'yes'
+      PEIMS_DATABASE_URL: 'postgresql+psycopg://peims_ci:ci_nonsecret_ephemeral@127.0.0.1:5432/peims_stage?sslmode=require'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Create disposable PostgreSQL 16 with TLS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/peims-pg-test"
+          openssl req -x509 -nodes -newkey rsa:2048 -sha256 -days 1 \
+            -subj "/CN=localhost" \
+            -keyout "$RUNNER_TEMP/peims-pg-test/server.key" \
+            -out "$RUNNER_TEMP/peims-pg-test/server.crt" >/dev/null 2>&1
+          chmod 755 "$RUNNER_TEMP/peims-pg-test"
+          chmod 600 "$RUNNER_TEMP/peims-pg-test/server.key"
+          chmod 644 "$RUNNER_TEMP/peims-pg-test/server.crt"
+          sudo chown 999:999 "$RUNNER_TEMP/peims-pg-test/server.key"
+          docker run -d --rm --name peims-ci-postgres \
+            -e POSTGRES_USER=peims_ci \
+            -e POSTGRES_PASSWORD=ci_nonsecret_ephemeral \
+            -e POSTGRES_DB=peims_stage \
+            -v "$RUNNER_TEMP/peims-pg-test:/certs:ro" \
+            -p 127.0.0.1:5432:5432 postgres:16 \
+            -c ssl=on -c ssl_cert_file=/certs/server.crt -c ssl_key_file=/certs/server.key
+          for i in $(seq 1 30); do
+            if docker exec peims-ci-postgres pg_isready -U peims_ci -d peims_stage >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs peims-ci-postgres --tail 80
+          exit 1
+      - name: Install enterprise dependencies
+        run: python -m pip install -r requirements-api.txt pytest
+      - name: Migrate schema through all five revisions
+        run: python -m alembic upgrade head
+      - name: Verify PostgreSQL TLS, persistence, constraints and API permissions
+        run: python -m scripts.postgres_staging_acceptance
+      - name: Stop disposable PostgreSQL
+        if: always()
+        run: docker rm -f peims-ci-postgres || true

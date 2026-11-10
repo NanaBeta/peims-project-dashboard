@@ -63,3 +63,22 @@ The adapter in `enterprise/staging_runtime.py` converts Render's **internal** Po
 | Real organization data approved | **Not authorized** |
 
 **Do not mark staging live or production ready until those acceptance rows are independently verified.**
+
+
+## Automated disposable PostgreSQL rehearsal
+
+The GitHub workflow [`.github/workflows/postgres-staging.yml`](.github/workflows/postgres-staging.yml)
+starts an **ephemeral PostgreSQL 16 container with TLS**, applies all Alembic migrations
+(`0001` through `0005`), and runs
+[`scripts/postgres_staging_acceptance.py`](scripts/postgres_staging_acceptance.py).
+
+It tests PostgreSQL TLS, migration revision, real transaction persistence, API
+project permissions, optimistic version conflicts, audit metadata and cross-project
+dependency foreign keys. It uses only synthetic records and a deliberately
+non-secret CI-only database password. The ephemeral container is stopped after
+the workflow.
+
+**This is not a deployed staging environment or a substitute for staging
+acceptance.** It does not provision Render, configure an IdP, test actual
+two-account OIDC login, demonstrate backup restoration, or approve real project
+data. A green CI workflow should not be mistaken for a live private PEIMS URL.
