@@ -25,6 +25,7 @@ HOME_CHOICES = (
     HomeChoice("Risks & actions", "Resolve issues", "Actions, risks and responsible owners", "⚑"),
     HomeChoice("Documents", "Open documents", "Drawings, revisions and approvals", "▦"),
     HomeChoice("Reports", "Prepare a report", "A draft report from project records", "▧"),
+    HomeChoice("Spreadsheet studio", "Open spreadsheets", "Editable registers, Excel exchange and report builder", "▦"),
 )
 
 
@@ -41,6 +42,7 @@ def home_choice_counts(result: dict, workflows: dict) -> dict[str, str]:
         "Risks & actions": f'{int(k["overdue_actions"])} overdue actions',
         "Documents": f'{n_docs} documents',
         "Reports": "Weekly project summary",
+        "Spreadsheet studio": "9 project worksheets",
     }
 
 

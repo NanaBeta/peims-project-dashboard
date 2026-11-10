@@ -9,7 +9,7 @@ from streamlit.testing.v1 import AppTest
 APP = Path(__file__).resolve().parents[1] / 'app.py'
 PAGES = (
     'Home', 'Command centre', 'Schedule', 'Cost control', 'Procurement',
-    'Risks & actions', 'Documents', 'Analytics studio', 'Reports', 'Workflows', 'Data studio',
+    'Risks & actions', 'Documents', 'Analytics studio', 'Reports', 'Workflows', 'Data studio', 'Spreadsheet studio',
 )
 
 

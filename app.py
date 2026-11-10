@@ -18,6 +18,9 @@ from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
                       normalize_for_export, make_snapshot, read_snapshot, workflow_report_appendix)
 
 from project_controls import critical_path, cost_forecast
+from sheet_engine import (SHEET_NAMES, EDITABLE_SHEETS, SHEET_LABELS, SHEET_KEYS,
+                          project_sheet, apply_sheet, workbook_bytes, imported_sheet, safe_csv)
+from bi_engine import SOURCE_SPECS, source_frame, build_analysis
 from experience import HOME_CHOICES, home_choice_counts, priority_actions, activity_status, render_welcome
 
 # Streamlit Cloud can hot-reload app.py while retaining a previous imported ui_shell.
@@ -108,7 +111,7 @@ def flags_panel(alerts: list[dict]):
         )
 
 
-NAV_SCHEMA_VERSION = "guided-v0.5.5.1"
+NAV_SCHEMA_VERSION = "studio-v0.6"
 
 
 def migrate_navigation_session() -> None:
@@ -822,6 +825,154 @@ def show_data_controls(base_data: dict[str, pd.DataFrame]):
     st.caption("You can also edit CSV files in the project data/ folder and restart the app; the app cache can be cleared from the Streamlit menu.")
 
 
+
+def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result: dict) -> None:
+    """Excel-inspired register workspace; BI-style analysis; vetted XLSX exchange.
+
+    This is a typed, project-scoped record editor. It deliberately does not
+    execute spreadsheet formulas or provide a general-purpose Excel engine.
+    """
+    st.caption('Fictional records only · Changes affect this browser session, not a shared database')
+    sheet = st.selectbox(
+        'Open worksheet', SHEET_NAMES, format_func=lambda n: SHEET_LABELS[n], key='studio_sheet')
+    sheet_frame = project_sheet(core, workflows, sheet, project_id)
+    a, b, c = st.columns(3)
+    a.metric('Rows in this project', len(sheet_frame))
+    b.metric('Columns', len(sheet_frame.columns))
+    c.metric('Workspace', 'Editable' if sheet in EDITABLE_SHEETS else 'Read-only')
+    tab_grid, tab_analysis, tab_excel = st.tabs(['Worksheet grid', 'Analysis builder', 'Excel exchange'])
+
+    with tab_grid:
+        st.markdown('#### Project worksheet')
+        st.caption('Edit existing rows like a structured Excel table. You can scroll, sort columns, copy values, '
+                   'and edit fields. Record IDs, project IDs and row counts cannot be changed here.')
+        if sheet in EDITABLE_SHEETS:
+            edit_key = f'studio_grid_{project_id}_{sheet}_{st.session_state.get("studio_edit_version", 0)}'
+            with st.form(f'studio_form_{project_id}_{sheet}', border=False):
+                opts = {'use_container_width': True, 'hide_index': True,
+                        'height': 420, 'num_rows': 'fixed',
+                        'disabled': ['project_id', SHEET_KEYS[sheet]]}
+                editable = st.data_editor(sheet_frame, key=edit_key, **opts)
+                submit = st.form_submit_button('Validate & apply worksheet changes', type='primary')
+            if submit:
+                try:
+                    new_core, new_workflows, events = apply_sheet(core, workflows, sheet, project_id, editable)
+                    if not events:
+                        st.info('No changes were found.')
+                    else:
+                        if sheet in new_core and sheet not in ('contractors', 'rfis', 'documents'):
+                            overrides = dict(st.session_state.get('overrides', {}))
+                            overrides[sheet] = new_core[sheet]
+                            st.session_state['overrides'] = overrides
+                        else:
+                            overrides = dict(st.session_state.get('workflow_overrides', {}))
+                            overrides[sheet] = new_workflows[sheet]
+                            st.session_state['workflow_overrides'] = overrides
+                        history = list(st.session_state.get('change_history', []))
+                        st.session_state['change_history'] = (history + events)[-250:]
+                        st.session_state['studio_edit_version'] = st.session_state.get('studio_edit_version', 0) + 1
+                        st.success(f'Applied {len(events)} record change(s) to this session.')
+                        st.rerun()
+                except (ValueError, KeyError, TypeError) as exc:
+                    st.error(f'Worksheet rejected: {exc}')
+        else:
+            st.dataframe(sheet_frame, use_container_width=True, hide_index=True, height=420)
+            st.info('Historical progress snapshots are read-only in this release.')
+        if sheet == 'activities':
+            with st.expander('Calculated columns (read-only)', expanded=False):
+                calc = result['activities'][['wbs', 'activity', 'planned_pct', 'actual_pct', 'variance_pp', 'earned_value']]
+                st.dataframe(calc, use_container_width=True, hide_index=True)
+                st.caption('These columns are calculated by PEIMS rather than Excel cell formulas.')
+        st.download_button('Export this sheet as CSV', safe_csv(sheet_frame),
+                           file_name=f'PEIMS_{project_id}_{sheet}.csv', mime='text/csv')
+
+    with tab_analysis:
+        st.markdown('#### Build an analytical view')
+        st.caption('Choose a dataset, group your records, and apply a filter. Results come from the same '
+                   'validated project records used by the dashboard.')
+        source = st.selectbox('Dataset', tuple(SOURCE_SPECS), key='studio_bi_source')
+        spec = SOURCE_SPECS[source]
+        left, right = st.columns(2)
+        with left:
+            dimension = st.selectbox('Group by', spec['dimensions'], key=f'studio_dim_{source}')
+        with right:
+            metric = st.selectbox('Measure', spec['metrics'], key=f'studio_measure_{source}')
+        filter_fields = ('All records',) + spec['dimensions']
+        filter_field = st.selectbox('Filter dimension', filter_fields, key=f'studio_filter_{source}')
+        selected_value = None
+        if filter_field != 'All records':
+            items = sorted(source_frame(result, source)[filter_field].fillna('(blank)').astype(str).unique().tolist())
+            selected_value = st.selectbox('Filter value', items, key=f'studio_filter_value_{source}_{filter_field}')
+        try:
+            summary, details = build_analysis(result, source, dimension, metric,
+                                              None if filter_field == 'All records' else filter_field,
+                                              selected_value)
+            if summary.empty:
+                st.info('No records match these filters.')
+            else:
+                fig = go.Figure(go.Bar(x=summary[dimension], y=summary[metric],
+                                       hovertemplate='%{x}: %{y:,.2f}<extra></extra>'))
+                fig.update_layout(xaxis_title=dimension.replace('_', ' ').title(), yaxis_title=metric,
+                                  margin=dict(t=18, b=20, l=12, r=12), height=330)
+                st.plotly_chart(fig, use_container_width=True)
+                st.dataframe(summary, hide_index=True, use_container_width=True)
+                st.download_button('Export analytical result CSV', safe_csv(summary),
+                                   file_name=f'PEIMS_{project_id}_{source.lower()}_analysis.csv',
+                                   mime='text/csv')
+                with st.expander(f'View filtered source records ({len(details)})'):
+                    st.dataframe(details, hide_index=True, use_container_width=True)
+            st.caption('Grouped aggregates are descriptive, not Power BI semantic-model measures. '
+                       'Weighted completion uses the project activity weights.')
+        except (ValueError, KeyError) as exc:
+            st.error(f'Analysis cannot be calculated: {exc}')
+
+    with tab_excel:
+        st.markdown('#### Excel workbook exchange')
+        st.caption('Download a multi-worksheet Excel workbook. Edit values offline and import one '
+                   'worksheet at a time. Sheet names, headers, IDs and row counts must remain unchanged.')
+        try:
+            data = workbook_bytes(core, workflows, project_id)
+            st.download_button('Download Excel workbook (.xlsx)', data,
+                               file_name=f'PEIMS_{project_id}_ProjectWorkbook.xlsx',
+                               mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        except Exception as exc:
+            st.error(f'Could not generate workbook: {exc}')
+        if sheet not in EDITABLE_SHEETS:
+            st.info('Choose an editable worksheet above before importing.')
+        else:
+            file = st.file_uploader(f'Import updated {sheet}.xlsx worksheet', type=['xlsx'],
+                                    key=f'studio_xlsx_upload_{sheet}')
+            if file is not None:
+                try:
+                    imported = imported_sheet(file.getvalue(), sheet)
+                    # Show a preview; validation uses the exact same path as in-app edits.
+                    st.caption(f'Preview: {len(imported)} rows from worksheet {sheet}')
+                    st.dataframe(imported.head(8), hide_index=True, use_container_width=True)
+                    new_core, new_workflows, events = apply_sheet(core, workflows, sheet, project_id, imported)
+                    st.info(f'{len(events)} existing record(s) would change. No records have been applied yet.')
+                    if st.button('Confirm validated Excel import', type='primary', key=f'xlsx_apply_{sheet}'):
+                        if events:
+                            if sheet in new_core and sheet not in ('contractors', 'rfis', 'documents'):
+                                edits = dict(st.session_state.get('overrides', {}))
+                                edits[sheet] = new_core[sheet]
+                                st.session_state['overrides'] = edits
+                            else:
+                                edits = dict(st.session_state.get('workflow_overrides', {}))
+                                edits[sheet] = new_workflows[sheet]
+                                st.session_state['workflow_overrides'] = edits
+                            history = list(st.session_state.get('change_history', []))
+                            st.session_state['change_history'] = (history + events)[-250:]
+                            st.session_state['studio_edit_version'] = st.session_state.get('studio_edit_version', 0) + 1
+                            st.success('Excel worksheet imported into this session.')
+                            st.rerun()
+                        else:
+                            st.info('Imported sheet matches current records; nothing to change.')
+                except (ValueError, TypeError, KeyError) as exc:
+                    st.error(f'Excel import rejected: {exc}')
+        st.warning('This is not full Excel, Power Query, or Power BI. Formula execution and '
+                   'automatic database sync are not supported. Use only fictional or approved sample data.')
+
+
 def main():
     base_data = get_demo_data()
     all_data = {name: st.session_state.get("overrides", {}).get(name, base_data[name]) for name in DATASET_COLUMNS}
@@ -898,6 +1049,8 @@ def main():
             show_workflow_hub(all_data, workflows, chosen, chosen_info["snapshot_date"])
         elif section == "Data studio":
             show_data_controls(base_data)
+        elif section == "Spreadsheet studio":
+            show_spreadsheet_studio(all_data, workflows, chosen, result)
     st.markdown(render_safety(), unsafe_allow_html=True)
     st.markdown(render_footer(), unsafe_allow_html=True)
 

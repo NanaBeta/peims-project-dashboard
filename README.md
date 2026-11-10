@@ -1,3 +1,9 @@
+## NEW — Spreadsheet Studio (v0.6)
+
+From **Home → Open spreadsheets**, explore/edit project worksheets, exchange validated Excel `.xlsx` workbooks, and build grouped analytical views. See [Feature matrix](FEATURE_MATRIX_v0.6.md) and [release notes](RELEASE_NOTES_v0.6.md).
+
+This is a session-only demonstration with no company integration or persistent database.
+
 # PEIMS v0.5.5 — Guided Workspaces
 
 The **new Home page** is the default start screen. Select **Manage schedule**, **Review costs**, **Track deliveries**, **Resolve issues**, **Open documents**, or **Prepare a report** to enter a focused workspace. Select **Analysis** inside workspaces for full charts. The sidebar and the `← Home` button provide navigation.
