@@ -57,3 +57,9 @@ The Spreadsheet Studio now supports **validated creation of new activity, procur
 - **Implemented in source:** separate organization tenant and role memberships; admin approval of reusable labels; version-checked project-level opt-in; filtered shared suggestions; project and organization audits; backwards-compatible migration. No automatic sharing of data across projects or organizations.
 - **Still project-only in live Streamlit:** the standalone public demo cannot access the enterprise directory without a verified organizational login and a deployed backend.
 - **Later integration:** use an authenticated server-side API client to merge a project's existing suggestions with *only* `approved_values` returned by the authorization-checked endpoint. Keep local values first, approved organization values second, and generic presets last; never import private cost rates or supplier agreements.
+
+### v0.6.4 — Asana/Primavera-inspired timeline presentation
+
+- **Implemented:** Home preview, Command centre full Gantt, Schedule Gantt workspace with owner/status filters, hover, zoom, CSV export and activity record navigation.
+- **Not implemented:** Drag/drop scheduling, calendar workweeks, P6 approved baselines, dependencies editing on bars, milestones, resource leveling, actual-date history, cross-project portfolio Gantt, Asana board/calendar automation, or live data integrations.
+- References: [Asana Gantt](https://help.asana.com/s/article/gantt-view), [Oracle P6 Gantt](https://docs.oracle.com/cd/F74771_01/English/User_Guides/p6_pro_user/the_gantt_chart.htm).

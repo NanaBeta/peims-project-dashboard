@@ -22,6 +22,7 @@ from sheet_engine import (SHEET_NAMES, EDITABLE_SHEETS, SHEET_LABELS, SHEET_KEYS
                           project_sheet, apply_sheet, workbook_bytes, imported_sheet, safe_csv)
 from smart_entry import suggestions, new_record_id, SUGGESTED_FIELDS, validate_smart_inputs
 from bi_engine import SOURCE_SPECS, source_frame, build_analysis
+from gantt import gantt_figure, gantt_rows
 from experience import HOME_CHOICES, home_choice_counts, priority_actions, activity_status, render_welcome
 
 # Streamlit Cloud can hot-reload app.py while retaining a previous imported ui_shell.
@@ -157,6 +158,13 @@ def show_shortcuts(result: dict) -> None:
 
 
 
+def open_gantt_workspace() -> None:
+    """Open a dedicated Gantt view, not a previous activity-list selection."""
+    st.session_state.pop('peims_activity_detail', None)
+    st.session_state['schedule_mode'] = 'Gantt'
+    change_workspace('Schedule')
+
+
 def open_activity_record(activity_id: str) -> None:
     st.session_state["peims_activity_detail"] = activity_id
     st.session_state["schedule_mode"] = "Activities"
@@ -177,6 +185,13 @@ def open_document_record(document_id: str) -> None:
 def show_home(result: dict, project: dict, workflows: dict) -> None:
     """A true start page: choose a job first, open analysis only on demand."""
     st.markdown(render_welcome(project, result["kpi"]), unsafe_allow_html=True)
+    st.markdown('### Project timeline · at a glance')
+    st.caption('Planned activity windows with reported completion fraction filled in. The dashed line marks the project reporting snapshot; no actual work dates or forecasts are inferred.')
+    st.plotly_chart(gantt_figure(result['activities'], result['date'], compact=True, limit=6),
+                    use_container_width=True, key='home_project_gantt',
+                    config={'displayModeBar': False, 'displaylogo': False})
+    st.button('Open full Gantt & schedule →', key='home_full_gantt',
+              on_click=open_gantt_workspace, use_container_width=True)
     st.markdown('<div class="peims-home-label">What would you like to do?</div>'
                 '<p class="peims-home-sub">Choose one workspace. Detailed analysis is there when you need it.</p>',
                 unsafe_allow_html=True)
@@ -189,7 +204,9 @@ def show_home(result: dict, project: dict, workflows: dict) -> None:
                     st.markdown(f'<div class="peims-card-icon" aria-hidden="true">{escape(choice.icon)}</div>',
                                 unsafe_allow_html=True)
                     st.button(f"{choice.label}  →", key=f"home_open_{choice.target.lower().replace(' ', '_').replace('&', 'and')}",
-                              on_click=change_workspace, args=(choice.target,), use_container_width=True,
+                              on_click=open_gantt_workspace if choice.target == 'Schedule' else change_workspace,
+                              args=() if choice.target == 'Schedule' else (choice.target,),
+                              use_container_width=True,
                               help=f"Open the {choice.label.lower()} workspace")
                     st.markdown(f'<div class="peims-card-info">{escape(choice.summary)}</div>'
                                 f'<div class="peims-card-count">{escape(counts[choice.target])}</div>',
@@ -261,9 +278,60 @@ def show_activity_details(result: dict, row: pd.Series) -> None:
     st.caption('Baseline completion is modeled linearly; schedule analysis is illustrative.')
 
 
+def show_schedule_gantt(result: dict) -> None:
+    """Interactive Gantt with owner/status filters and activity detail navigation."""
+    activities, kpi = result['activities'], result['kpi']
+    m1, m2, m3 = st.columns(3)
+    m1.metric('Scheduled activities', len(activities))
+    m2.metric('Behind baseline >10 pp', int(kpi['slipping_activities']))
+    m3.metric('Physical completion', f"{kpi['actual_pct']:.1f}%")
+    st.markdown('### Gantt · project schedule')
+    st.caption('Bar length = planned start–finish window; coloured fill = reported % complete (not recorded actual work dates). The dashed line is the project reporting date.')
+    owners = sorted(activities['owner'].dropna().astype(str).unique().tolist())
+    f1, f2 = st.columns(2)
+    with f1:
+        owner = st.selectbox('Filter owner', ['All owners'] + owners,
+                             key=f'gantt_owner_{result["info"]["project_id"]}')
+    with f2:
+        status = st.selectbox('Filter status',
+                              ['All activities', 'Behind baseline', 'Past finish date',
+                               'In progress', 'Not started', 'Completed'],
+                              key=f'gantt_status_{result["info"]["project_id"]}')
+    shown = gantt_rows(activities, result['date'])
+    if owner != 'All owners':
+        shown = shown.loc[shown['owner'].astype(str).eq(owner)]
+    if status != 'All activities':
+        shown = shown.loc[shown['gantt_status'].eq(status)]
+    st.caption(f'{len(shown)} of {len(activities)} activities shown · Hover to inspect dates, owner and progress; drag to zoom.')
+    if shown.empty:
+        st.info('No activities match these filters. Change the owner or status selection.')
+    else:
+        st.plotly_chart(gantt_figure(shown, result['date']),
+                        use_container_width=True, key='schedule_full_gantt',
+                        config={'displaylogo': False})
+        ids = shown['activity_id'].astype(str).tolist()
+        labels = {str(row['activity_id']): f"{row['wbs']} · {row['activity']}" for _, row in shown.iterrows()}
+        c1, c2 = st.columns([3,1])
+        with c1:
+            choice = st.selectbox('Activity details', ids, format_func=lambda value: labels[value],
+                                  key=f'gantt_choice_{result["info"]["project_id"]}')
+        with c2:
+            st.write('')
+            st.button('Open activity →', key='gantt_open_activity',
+                      on_click=open_activity_record, args=(choice,), use_container_width=True)
+        st.download_button('Export displayed timeline CSV',
+                           safe_csv(shown[['activity_id','wbs','activity','owner','start_date','finish_date',
+                                           'planned_pct','actual_pct','variance_pp','gantt_status']]),
+                           file_name=f'PEIMS_{result["info"]["project_id"]}_Gantt.csv', mime='text/csv')
+    st.caption('For dependency links, critical-path analysis and network finish dates, choose **Analysis**. This demo has no actual start/finish history, approved revised baseline, or resource-levelled schedule.')
+
+
 def show_schedule_journey(result: dict) -> None:
-    view = st.radio('Schedule view', ['Activities', 'Analysis'], horizontal=True,
-                    key='schedule_mode', help='Choose a focused activity list or detailed schedule analytics')
+    view = st.radio('Schedule view', ['Gantt', 'Activities', 'Analysis'], horizontal=True,
+                    key='schedule_mode', help='Explore Gantt, individual activities, or deeper CPM analytics')
+    if view == 'Gantt':
+        show_schedule_gantt(result)
+        return
     if view == 'Analysis':
         show_schedule(result)
         return
@@ -460,6 +528,13 @@ def show_overview(result: dict):
         b.metric("Schedule index (SPI)", f"{k['spi']:.2f}" if k['spi'] is not None else 'N/A')
         c.metric("Cost index (CPI)", f"{k['cpi']:.2f}" if k['cpi'] is not None else 'N/A')
         d.metric("High-priority risks", k['open_high_risks'])
+    st.subheader('Project Gantt · schedule and reported progress')
+    st.plotly_chart(gantt_figure(result['activities'], result['date']),
+                    use_container_width=True, key='command_centre_gantt',
+                    config={'displayModeBar': False, 'displaylogo': False})
+    st.caption('Grey: planned window · coloured fill: reported completion fraction · dashed line: reporting date. This view does not infer actual dates or an approved revised baseline.')
+    st.button('Explore Gantt and activity details →', key='command_open_gantt',
+              on_click=open_gantt_workspace, use_container_width=True)
     left, right = st.columns([1.65, 1], gap="large")
     with left:
         st.subheader("Progress S-curve · reported vs baseline")
@@ -1120,6 +1195,9 @@ def main():
     )
     st.sidebar.markdown('<div class="peims-sidebar-heading">WORKSPACE</div>', unsafe_allow_html=True)
     migrate_navigation_session()
+    if st.session_state.get('_peims_gantt_view_migrated') != 'v0.6.4':
+        st.session_state['schedule_mode'] = 'Gantt'
+        st.session_state['_peims_gantt_view_migrated'] = 'v0.6.4'
     section = st.sidebar.radio("Workspace navigation", NAVIGATION,
                                 format_func=lambda v: NAV_LABELS[v],
                                 key="workspace_navigation", label_visibility="collapsed")
@@ -1136,7 +1214,7 @@ def main():
     with st.sidebar.expander("Workspace information", expanded=False):
         st.caption(f"Fictional project · snapshot {display_date}")
         st.caption("Session-only edits; export backups manually. No enterprise API connection.")
-    st.sidebar.caption("PEIMS · Guided workspaces 0.5.5.1")
+    st.sidebar.caption("PEIMS · Gantt & guided workspaces 0.6.4")
 
     try:
         result = compute(select_project(all_data, chosen))

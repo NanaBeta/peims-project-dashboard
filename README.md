@@ -1,3 +1,7 @@
+## NEW — Gantt project timeline (v0.6.4)
+
+Home includes a compact activity Gantt; Command centre includes the full schedule picture; Planning & schedule → Gantt has owner/status filters, zoom, selected-activity detail and CSV export. The grey bars represent planned date windows and the coloured fills represent reported percentage completion. They do not imply observed actual work dates or forecasting. See [release notes](RELEASE_NOTES_v0.6.4.md).
+
 # NEW — Smart entry suggestions (v0.6.2)
 
 Add entries from **Spreadsheets & BI → Worksheet grid → ＋ Add an entry with suggestions**. Owners, disciplines, categories, suppliers and related fields suggest previously used values from the selected project, and free-text fields also permit new labels. The grid supports suggestion dropdowns with an opt-out to type freely. See [release notes](RELEASE_NOTES_v0.6.2.md).
