@@ -1277,8 +1277,8 @@ def main():
         elif section == "Spreadsheet studio":
             show_spreadsheet_studio(all_data, workflows, chosen, result)
         elif section == "Work management":
-            st.caption("DEBUG ROUTER ENTERED WORK MANAGEMENT")
-            show_work_management(all_data, chosen, chosen_info["snapshot_date"], get_sample_dependencies())
+            with st.container(key="peims_work_management"):
+                show_work_management(all_data, chosen, chosen_info["snapshot_date"], get_sample_dependencies())
     st.markdown(render_safety(), unsafe_allow_html=True)
     st.markdown(render_footer(), unsafe_allow_html=True)
 
