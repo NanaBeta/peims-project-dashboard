@@ -8,7 +8,7 @@ from ui_shell import (
 
 
 def test_navigation_complete_unique_and_described():
-    assert len(NAVIGATION) == 11
+    assert len(NAVIGATION) == 12
     assert len(set(NAVIGATION)) == len(NAVIGATION)
     assert set(NAVIGATION) == set(NAV_LABELS) == set(PAGE_INFO)
     assert all(len(PAGE_INFO[page]) == 3 for page in NAVIGATION)
