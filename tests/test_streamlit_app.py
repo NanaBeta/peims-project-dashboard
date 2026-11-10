@@ -143,5 +143,5 @@ def test_spreadsheet_suggested_values_and_quick_add_workflow():
     assert len(submit) == 1
     submit[0].click().run()
     assert not at.exception, [str(e.message) for e in at.exception]
-    assert not at.error, [e.message for e in at.error]
+    assert not at.error, [str(e) for e in at.error]
     assert at.session_state.get('studio_edit_version', 0) >= 1
