@@ -1,3 +1,7 @@
+## v0.8 — Persistent task and collaboration API foundation (separate service)
+
+The enterprise FastAPI source now provides durable project-scoped work items, version-checked updates, dependency links, signed time logs, comments, and audited project summaries, plus migration `0004_work_management`. All API routes require OIDC access tokens and explicit project membership. This implementation is **not deployed or connected** to the public Streamlit demonstration, which continues to store changes in the current browser session. See [v0.8 release notes](RELEASE_NOTES_v0.8.md) and [staging setup](ENTERPRISE_SETUP.md).
+
 ## NEW — Gantt timeline (v0.6.4)
 
 **Home** now includes an at-a-glance project Gantt, **Command centre** includes the full schedule picture, and **Planning & schedule → Gantt** provides owner/status filters, zoom, activity detail navigation and CSV export. The bars show planned date windows and reported percent completion; actual work dates and forecasts are **not** inferred. [Details](RELEASE_NOTES_v0.6.4.md).

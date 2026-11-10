@@ -111,6 +111,11 @@ def revoke_member(project_id: str, principal_sub: str, expected_version: int = Q
                                                                          Member.role == 'manager'))
         if count <= 1:
             raise HTTPException(status_code=409, detail='Cannot remove final manager')
+    # Work-item assignees must also be reassigned before membership revocation.
+    from enterprise.models import WorkItem
+    if db.scalar(select(func.count()).select_from(WorkItem).where(
+            WorkItem.project_id == project_id, WorkItem.assigned_sub == principal_sub)):
+        raise HTTPException(status_code=409, detail='Reassign work items before removing member')
     # Prevent unresolved actions continuing to point at a revoked user.
     if db.scalar(select(func.count()).select_from(ActionItem).where(ActionItem.project_id == project_id,
                                                                      ActionItem.assigned_sub == principal_sub)):

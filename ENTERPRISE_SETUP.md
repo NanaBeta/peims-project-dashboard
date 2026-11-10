@@ -1,4 +1,4 @@
-# PEIMS v0.5 — separate enterprise API setup (staging only)
+# PEIMS — separate enterprise API setup (staging only)
 
 **Do not connect the public Streamlit Community Cloud dashboard to an organizational database.** v0.5 supplies an API and migration source, but **does not create any database, hosting account, tenant, DNS entry, OIDC client or company integration**.
 
@@ -27,7 +27,7 @@ alembic upgrade head
 alembic current
 ```
 
-The database migration is explicit; API startup never creates or updates tables. The two migrations are `0001_initial` (v0.4) and `0002_workspace` (v0.5). **Test upgrade and downgrade only in an expendable copy, never by downgrading a real database containing business records.**
+The database migration is explicit; API startup never creates or updates tables. The migration chain is `0001_initial` (v0.4), `0002_workspace` (v0.5), `0003_organization_directory` (v0.6.3), and `0004_work_management` (v0.8). **Test upgrade and downgrade only in an expendable copy, never by downgrading a real database containing business records.**
 
 ## 3. First project and first manager
 
@@ -111,3 +111,73 @@ Directory kinds: `contractor`, `supplier`, `discipline`, `person`, `category`, `
 6. Org admin archives an obsolete entry or revokes access; next request reflects the change.
 
 **Not yet available:** database hosting, actual organization provisioning, authenticated Streamlit-to-API integration, organization administration UI, invitations and identity-lifecycle orchestration, PostgreSQL integration testing, rate limiting, CSRF/session policy for a browser client, or a business-verified organization onboarding workflow. Implement and test these before processing any confidential customer data.
+
+## 8. Durable collaborative task records — v0.8 (backend only)
+
+**Code release only.** The public Streamlit task views are **not** connected to this API and retain session-only data. Never send demo ZIP backups or real organizational records to an unapproved server.
+
+### Storage and deployment
+
+New revision `0004_work_management` adds four project-scoped tables for tasks, finish-to-start dependencies, time entries and comments. Run `alembic upgrade head` **after** verifying a recoverable PostgreSQL staging backup and authorized OIDC tenant. No database is automatically migrated at application startup. Rehearse failover, concurrent writers and rollback on disposable staging (not production with records).
+
+The API continues to require `Authorization: Bearer <verified-api-access-token>`. The `sub` claim must already be a `members.principal_sub` for the requested project. Roles: `viewer` can read; `engineer` and `manager` can create/update tasks, dependencies, time entries and comments. Project managers alone can manage project membership; revoking a member assigned to work items is blocked until those tasks are reassigned. Assignment requires a member with an engineer or manager role.
+
+### Task and collaboration endpoints
+
+All URLs below are prefixed by `/v1/projects/{project_id}`:
+
+| Route | Purpose |
+| --- | --- |
+| `GET /work-items?status=todo&limit=100&offset=0` | Project-specific task list with pagination/filtering |
+| `POST /work-items` | Create task, subtask or milestone |
+| `GET /work-items/{item_id}` | Fetch one project work item |
+| `PATCH /work-items/{item_id}` | Update with `expected_version` (409 on conflict) |
+| `GET /work-items/{item_id}/predecessors` | List finish-to-start predecessors |
+| `POST /work-items/{item_id}/predecessors` | Add predecessor; cycle/self/cross-project checks |
+| `DELETE /work-items/{item_id}/predecessors/{predecessor_id}` | Remove predecessor, audited |
+| `GET, POST /work-items/{item_id}/time-entries` | Read/add append-only signed time records |
+| `GET, POST /work-items/{item_id}/comments` | Read/add append-only plain-text comments |
+| `GET /work-summary` | Live task counts and recorded project hours |
+
+Example authenticated JSON request bodies (do not paste real access tokens into source, docs or public Streamlit controls):
+
+```json
+{
+  "reference": "ENG-001",
+  "title": "Review cable routing",
+  "kind": "task",
+  "status": "todo",
+  "priority": "high",
+  "assigned_sub": null,
+  "start_date": "2026-11-11",
+  "due_date": "2026-11-20",
+  "estimate_hours": "8.00",
+  "progress_pct": "0"
+}
+```
+
+```json
+{"expected_version":1,"status":"in_progress","progress_pct":"25"}
+```
+
+```json
+{"predecessor_id":"<existing-project-work-item-uuid>"}
+```
+
+```json
+{"work_date":"2026-11-11","hours":"1.50","note":"Reviewed cable schedule"}
+```
+
+```json
+{"body":"Please check the revision before the review meeting."}
+```
+
+All work-item and comment content should be rendered as escaped text by a future client; a string beginning with `@` does **not** generate a notification. Status transitions are recorded in project audit metadata. Dependencies do not automatically revise the approved activity baseline or commercial cost ledger. The API has no unreviewed task deletion endpoint.
+
+### Required integration gates
+
+1. Run 0004 migration in a disposable PostgreSQL staging copy and verify composite foreign keys, version conflicts and concurrent dependency updates across real transactions.
+2. Configure and verify IdP JWT issuer/audience/JWKS, project provisioning and signed-in engineer/manager/viewer acceptance tests.
+3. Test persistence after service restart, restore of encrypted backups, audit retention, least-privilege DB credentials, app-level logs and database-level tenant safeguards.
+4. Build a future **private authenticated frontend** using supported OAuth code exchange. Do **not** connect the public Streamlit app, put raw tokens into UI text inputs, or enable broad CORS without an approved threat review.
+5. Prepare an explicit, validated migration path for earlier session ZIP work data. No legacy data is silently imported.

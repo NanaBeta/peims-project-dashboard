@@ -24,3 +24,7 @@
 - Implement and assess DB RLS, dedicated database roles, identity/role lifecycle policies, robust tenant isolation, tamper-resistant audit, credential rotation, rate limits, CORS policy, CSRF protection for future browser sessions, monitoring, retention/deletion and security review.
 - Scope any future integration with SAP/P6/Aconex/SharePoint to approved interfaces and information-classification policy.
 - No employee, mine plans, HSE, procurement or sensitive engineering data until organizational approval. This is an independent portfolio demonstrator, **not a Newmont product**.
+
+## v0.8 collaborative work-management safeguards
+
+The new API uses project-membership checks on each request, read-only viewers, per-project engineer/manager writes, composite DB keys for task parents/assignees/dependencies, optimistic task versions, and author-bound append-only comments/time logs. The public demo remains unauthenticated and isolated. New comments can contain Markdown or HTML-like text; future clients **must render it as escaped text**, never as trusted HTML. `@mentions` are stored as plain text only. The API does not transmit notifications or attachments. Time entries enforce a 24-hour limit per person **per project** per day, not across all organizations. Production requires approved cross-project workload controls, rate limits, retention/deletion policies, DB RLS assessment, OIDC integration tests, PostgreSQL race tests and a formal privacy/security review.
