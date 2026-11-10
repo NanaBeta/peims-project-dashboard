@@ -14,10 +14,11 @@ from enterprise.models import Project, Member, Activity, RFI, CostLine, AuditEve
 from enterprise.permissions import membership, audited
 from enterprise.workspace import router as workspace_router
 from enterprise.directory import router as directory_router
+from enterprise.work_management import router as work_management_router
 from sqlalchemy import text
 from enterprise.schemas import ProjectOut, ActivityOut, ActivityCreate, ProgressUpdate, RFIOut, RFICreate, RFIUpdate, CostOut, CostCreate, CostUpdate
 
-app = FastAPI(title='PEIMS enterprise API (staging foundation)', version='0.6.3', docs_url=None, redoc_url=None)
+app = FastAPI(title='PEIMS enterprise API (staging foundation)', version='0.8.0', docs_url=None, redoc_url=None)
 
 @app.get('/healthz')
 def healthz():
@@ -142,3 +143,5 @@ def readyz():
 
 app.include_router(workspace_router)
 app.include_router(directory_router)
+
+app.include_router(work_management_router)

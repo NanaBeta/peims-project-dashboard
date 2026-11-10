@@ -29,3 +29,13 @@ The public sample-data Streamlit site is **not** a safe place for company data. 
 - [ ] Obtain organizational approval before integrating SAP/P6/Aconex/SharePoint or ingesting sensitive mine, HSE, employee or financial records.
 
 **Release gate:** Only after the above checks should an authenticated browser UI use this API; the public PEIMS demo must remain isolated.
+
+## v0.8 work-management pre-deployment gates
+
+- [ ] Apply and rehearse `0004_work_management` in a disposable PostgreSQL staging database, verify foreign keys, indexes, and safe data-preserving migration from the prior revision. Never downgrade a database containing production work records.
+- [ ] Confirm two independently signed-in authorized users see durable task changes after service restart, and a third nonmember sees only a 404.
+- [ ] Confirm API OIDC issuer/audience/expiry verification and role checks across create, edit, comments and time endpoints. No token pasted into a public frontend.
+- [ ] Race two task updates with the same expected version; one must return 409. Race opposing dependency inserts; no cycles may persist.
+- [ ] Check task assignee membership integrity, revocation/reassignment, cross-project composite FKs, 24-hour per-project time caps and audit consistency on transaction rollback.
+- [ ] Validate time-log/comment retention, audit export policy, approved content rendering, request-size limits, monitoring and backup restore from a separate instance.
+- [ ] Do not claim real-time collaboration: add authenticated frontend, notifications and tenant RBAC/RLS review first.
