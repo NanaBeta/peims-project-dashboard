@@ -844,16 +844,23 @@ def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result
 
     with tab_grid:
         st.markdown('#### Project worksheet')
-        st.caption('Edit existing rows like a structured Excel table. You can scroll, sort columns, copy values, '
-                   'and edit fields. Record IDs, project IDs and row counts cannot be changed here.')
+        st.caption('Edit cells or use **+ Add row** at the bottom of an editable worksheet. '
+                   'Every new row needs a unique ID and all required fields; PEIMS fills the project ID. '
+                   'Existing rows cannot be deleted or renamed.')
         if sheet in EDITABLE_SHEETS:
             edit_key = f'studio_grid_{project_id}_{sheet}_{st.session_state.get("studio_edit_version", 0)}'
             with st.form(f'studio_form_{project_id}_{sheet}', border=False):
                 opts = {'use_container_width': True, 'hide_index': True,
-                        'height': 420, 'num_rows': 'fixed',
-                        'disabled': ['project_id', SHEET_KEYS[sheet]]}
+                        'height': 420, 'num_rows': 'fixed' if sheet == 'costs' else 'dynamic',
+                        'disabled': ['project_id'] if sheet != 'costs'
+                        else ['project_id', SHEET_KEYS[sheet]]}
                 editable = st.data_editor(sheet_frame, key=edit_key, **opts)
                 submit = st.form_submit_button('Validate & apply worksheet changes', type='primary')
+            if sheet == 'costs':
+                st.info('Add a new activity in **Activities & WBS** first. PEIMS automatically creates its cost ledger row with zero actual and committed expenditure.')
+            else:
+                st.caption('For a new row, enter a unique ID in the first column and fill the remaining fields. '
+                           'Leave project_id blank; PEIMS links it to this project when saving.')
             if submit:
                 try:
                     new_core, new_workflows, events = apply_sheet(core, workflows, sheet, project_id, editable)
@@ -863,6 +870,8 @@ def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result
                         if sheet in new_core and sheet not in ('contractors', 'rfis', 'documents'):
                             overrides = dict(st.session_state.get('overrides', {}))
                             overrides[sheet] = new_core[sheet]
+                            if sheet == 'activities':
+                                overrides['costs'] = new_core['costs']
                             st.session_state['overrides'] = overrides
                         else:
                             overrides = dict(st.session_state.get('workflow_overrides', {}))
@@ -928,8 +937,8 @@ def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result
 
     with tab_excel:
         st.markdown('#### Excel workbook exchange')
-        st.caption('Download a multi-worksheet Excel workbook. Edit values offline and import one '
-                   'worksheet at a time. Sheet names, headers, IDs and row counts must remain unchanged.')
+        st.caption('Download a multi-worksheet Excel workbook. Edit existing rows or add new records '
+                   'with unique IDs, then import one worksheet at a time. Existing IDs and project scopes are protected.')
         try:
             data = workbook_bytes(core, workflows, project_id)
             st.download_button('Download Excel workbook (.xlsx)', data,

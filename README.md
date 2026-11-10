@@ -119,3 +119,10 @@ The public Streamlit front end now uses sidebar workspace navigation instead of 
 ## v0.5.4 interface polish
 
 The project header now distinguishes actual and baseline with a target marker, while the Command centre has responsive Quick Access navigation and the sidebar keeps less-used settings collapsed. See `RELEASE_NOTES_v0.5.4.md` and `UI_GUIDE.md`.
+
+
+### Spreadsheet Studio: adding new records (v0.6.1)
+
+Open **Spreadsheets & BI → Worksheet grid**, choose a supported worksheet and click **+ Add row** at the bottom of the grid. Fill a new unique record ID and all required fields, then select **Validate & apply worksheet changes**. PEIMS automatically assigns the selected project. Existing records cannot be renamed or deleted from this spreadsheet.
+
+Adding an activity automatically initializes its matching cost row with zero actual and committed costs; edit those values afterward in **Cost ledger**. You can also append rows to an exported Excel workbook and import the selected worksheet. Changes remain browser-session-only until backed up.
