@@ -62,7 +62,7 @@ jobs:
       - name: Migrate schema through all five revisions
         run: python -m alembic upgrade head
       - name: Verify PostgreSQL TLS, persistence, constraints and API permissions
-        run: python scripts/postgres_staging_acceptance.py
+        run: python -m scripts.postgres_staging_acceptance
       - name: Stop disposable PostgreSQL
         if: always()
         run: docker rm -f peims-ci-postgres || true
