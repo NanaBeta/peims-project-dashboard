@@ -136,9 +136,10 @@ def test_spreadsheet_suggested_values_and_quick_add_workflow():
     assert any(w.label == 'Source' for w in at.selectbox)
     text_fields = [w for w in at.text_input if w.label == 'Action']
     assert len(text_fields) == 1
-    text_fields[0].set_value('Inspect new electrical tie-in').run()
+    # Form inputs are buffered until submit; don't rerun between individual edits.
+    text_fields[0].set_value('Inspect new electrical tie-in')
     owners = [w for w in at.selectbox if w.label == 'Owner']
-    owners[0].set_value('Project Engineer').run()
+    owners[0].set_value('Project Engineer')
     submit = [w for w in at.button if w.label == 'Add record to this project']
     assert len(submit) == 1
     submit[0].click().run()
