@@ -1,0 +1,45 @@
+# PEIMS enterprise staging only. Deploy manually after security/hosting review.
+# Paid Render web + Postgres resources: creation can incur charges.
+# Does not deploy or modify the public Streamlit application.
+services:
+  - type: web
+    name: peims-enterprise-staging
+    runtime: python
+    region: frankfurt
+    plan: starter
+    autoDeployTrigger: "off"
+    buildCommand: python -m pip install -r requirements-api.txt
+    startCommand: python -m enterprise.staging_runtime serve
+    healthCheckPath: /readyz
+    envVars:
+      - key: PEIMS_DEPLOYMENT_ENV
+        value: staging
+      - key: PEIMS_RENDER_DATABASE_URL
+        fromDatabase:
+          name: peims-enterprise-staging-db
+          property: connectionString
+      # Required private configuration. No passwords or tokens in source control.
+      - key: PEIMS_CONSOLE_ORIGIN
+        sync: false
+      - key: PEIMS_OIDC_ISSUER
+        sync: false
+      - key: PEIMS_OIDC_AUDIENCE
+        sync: false
+      - key: PEIMS_OIDC_JWKS_URL
+        sync: false
+      - key: PEIMS_CONSOLE_AUTHORIZE_URL
+        sync: false
+      - key: PEIMS_CONSOLE_TOKEN_URL
+        sync: false
+      - key: PEIMS_CONSOLE_CLIENT_ID
+        sync: false
+      - key: PEIMS_CONSOLE_CLIENT_SECRET
+        sync: false
+      - key: PEIMS_CONSOLE_COOKIE_KEY
+        sync: false
+
+databases:
+  - name: peims-enterprise-staging-db
+    region: frankfurt
+    plan: basic-256mb
+    ipAllowList: []  # No public inbound database connections; internal only.
