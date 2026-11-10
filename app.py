@@ -7,6 +7,7 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 from datetime import datetime, timezone
+from importlib import reload
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -18,6 +19,12 @@ from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
 
 from project_controls import critical_path, cost_forecast
 from experience import HOME_CHOICES, home_choice_counts, priority_actions, activity_status, render_welcome
+
+# Streamlit Cloud can hot-reload app.py while retaining a previous imported ui_shell.
+# Refresh the tiny, pure presentation module before binding its navigation list.
+# Otherwise the new Home and Documents callbacks can fail against stale choices.
+import ui_shell as _ui_shell
+reload(_ui_shell)
 from ui_shell import (NAVIGATION, NAV_LABELS, attention_flags, render_css,
                       render_brand, render_header, render_intro, render_safety, render_footer)
 from visuals import (progress_s_curve, schedule_variance, dependency_timeline,
@@ -101,10 +108,28 @@ def flags_panel(alerts: list[dict]):
         )
 
 
+NAV_SCHEMA_VERSION = "guided-v0.5.5.1"
+
+
+def migrate_navigation_session() -> None:
+    """Show Home once after upgrading earlier browser sessions.
+
+    Never overwrite normal navigation again after the migration marker is set.
+    This also safely recovers a removed or renamed workspace.
+    """
+    if st.session_state.get("_peims_nav_schema") != NAV_SCHEMA_VERSION:
+        st.session_state["workspace_navigation"] = "Home"
+        st.session_state["_peims_nav_schema"] = NAV_SCHEMA_VERSION
+    elif st.session_state.get("workspace_navigation", "Home") not in NAVIGATION:
+        st.session_state["workspace_navigation"] = "Home"
+
+
 def change_workspace(target: str) -> None:
-    """Navigate through the same sidebar radio state (no duplicated page state)."""
+    """Navigate through the sidebar radio, recovering safely from stale choices."""
     if target not in NAVIGATION:
-        raise ValueError("Unknown PEIMS workspace")
+        st.session_state["workspace_navigation"] = "Home"
+        st.session_state["peims_nav_recovered"] = True
+        return
     st.session_state["workspace_navigation"] = target
 
 
@@ -423,11 +448,14 @@ def show_documents_journey(core: dict, workflows: dict, project_id: str, snapsho
 
 def show_overview(result: dict):
     k, info = result["kpi"], result["info"]
-    a, b, c, d = st.columns(4)
-    a.metric("Weighted physical progress", f"{k['actual_pct']:.1f}%", f"{k['progress_gap']:+.1f} pp vs linear baseline")
-    b.metric("Schedule performance (SPI)", f"{k['spi']:.2f}" if k['spi'] is not None else 'N/A')
-    c.metric("Cost performance (CPI)", f"{k['cpi']:.2f}" if k['cpi'] is not None else 'N/A')
-    d.metric("Open high risks", k['open_high_risks'])
+    # The special container enables a responsive 4→2→1 KPI grid without
+    # disrupting unrelated layouts in other project workspaces.
+    with st.container(key="peims_overview_kpis"):
+        a, b, c, d = st.columns(4)
+        a.metric("Physical progress", f"{k['actual_pct']:.1f}%", f"{k['progress_gap']:+.1f} pp vs baseline")
+        b.metric("Schedule index (SPI)", f"{k['spi']:.2f}" if k['spi'] is not None else 'N/A')
+        c.metric("Cost index (CPI)", f"{k['cpi']:.2f}" if k['cpi'] is not None else 'N/A')
+        d.metric("High-priority risks", k['open_high_risks'])
     left, right = st.columns([1.65, 1], gap="large")
     with left:
         st.subheader("Progress S-curve · reported vs baseline")
@@ -812,6 +840,7 @@ def main():
         key="active_project",
     )
     st.sidebar.markdown('<div class="peims-sidebar-heading">WORKSPACE</div>', unsafe_allow_html=True)
+    migrate_navigation_session()
     section = st.sidebar.radio("Workspace navigation", NAVIGATION,
                                 format_func=lambda v: NAV_LABELS[v],
                                 key="workspace_navigation", label_visibility="collapsed")
@@ -828,7 +857,7 @@ def main():
     with st.sidebar.expander("Workspace information", expanded=False):
         st.caption(f"Fictional project · snapshot {display_date}")
         st.caption("Session-only edits; export backups manually. No enterprise API connection.")
-    st.sidebar.caption("PEIMS · Guided workspaces 0.5.5")
+    st.sidebar.caption("PEIMS · Guided workspaces 0.5.5.1")
 
     try:
         result = compute(select_project(all_data, chosen))
@@ -839,6 +868,8 @@ def main():
     header_info = chosen_info.to_dict()
     header_info["display_date"] = display_date
     if section == "Home":
+        if st.session_state.pop("peims_nav_recovered", False):
+            st.info("Navigation was refreshed after an interface update. You're back on Home.")
         show_home(result, header_info, workflows)
     else:
         st.button('← Home', key='top_return_home', on_click=change_workspace,

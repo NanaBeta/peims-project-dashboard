@@ -60,3 +60,10 @@ def test_polished_header_progress_explains_actual_vs_baseline():
     assert 'left:78.4%' in html
     assert '-17.1 pp' in html
     assert 'peims-progress-value adverse' in html
+
+
+def test_command_centre_kpis_have_scoped_responsive_grid():
+    css = render_css()
+    assert '.st-key-peims_overview_kpis' in css
+    assert 'grid-template-columns:repeat(2,minmax(0,1fr))' in css
+    assert 'white-space:normal !important' in css
