@@ -191,10 +191,7 @@ def test_work_management_views_and_project_scoped_creation():
     at.sidebar.radio[0].set_value('Work management').run()
     assert not at.exception, [str(x.message) for x in at.exception]
     selector = [x for x in at.radio if x.label == 'Work view']
-    print('PM_DEBUG_CAPTIONS', [str(x.value)[:250] for x in at.caption][-12:], flush=True)
-    print('PM_DEBUG_MARKDOWN', [str(x.value)[:150] for x in at.markdown][-10:], flush=True)
-    print('PM_DEBUG_WIDGETS', [x.label for x in at.button][-15:],flush=True)
-    assert len(selector) == 1, {'radio': [(x.label,x.value) for x in at.radio], 'sidebar': at.sidebar.radio[0].value, 'buttons': [x.label for x in at.button][-15:], 'captions':[str(x.value)[:120] for x in at.caption][-15:], 'errors':[str(x.message) for x in at.exception], 'markdown':[str(x.value)[:90] for x in at.markdown][-10:]}
+    assert len(selector) == 1
     for target in ('List', 'Timeline', 'Calendar', 'Dependencies & CPM', 'Workload', 'Time & rules', 'Board'):
         selector = [x for x in at.radio if x.label == 'Work view'][0]
         selector.set_value(target).run()
