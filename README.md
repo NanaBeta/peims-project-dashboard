@@ -1,3 +1,7 @@
+# NEW — Smart entry suggestions (v0.6.2)
+
+Add entries from **Spreadsheets & BI → Worksheet grid → ＋ Add an entry with suggestions**. Owners, disciplines, categories, suppliers and related fields suggest previously used values from the selected project, and free-text fields also permit new labels. The grid supports suggestion dropdowns with an opt-out to type freely. See [release notes](RELEASE_NOTES_v0.6.2.md).
+
 ## NEW — Spreadsheet Studio (v0.6)
 
 From **Home → Open spreadsheets**, explore/edit project worksheets, exchange validated Excel `.xlsx` workbooks, and build grouped analytical views. See [Feature matrix](FEATURE_MATRIX_v0.6.md) and [release notes](RELEASE_NOTES_v0.6.md).
@@ -120,9 +124,8 @@ The public Streamlit front end now uses sidebar workspace navigation instead of 
 
 The project header now distinguishes actual and baseline with a target marker, while the Command centre has responsive Quick Access navigation and the sidebar keeps less-used settings collapsed. See `RELEASE_NOTES_v0.5.4.md` and `UI_GUIDE.md`.
 
-
 ### Spreadsheet Studio: adding new records (v0.6.1)
 
-Open **Spreadsheets & BI → Worksheet grid**, choose a supported worksheet and click **+ Add row** at the bottom of the grid. Fill a new unique record ID and all required fields, then select **Validate & apply worksheet changes**. PEIMS automatically assigns the selected project. Existing records cannot be renamed or deleted from this spreadsheet.
+Open **Spreadsheets & BI → Worksheet grid**, choose a supported worksheet and click the **+ Add row** control at the bottom of the grid. Add a unique ID (for example `ACTION-NEW-001`) and the required fields, then select **Validate & apply worksheet changes**. The selected project is set automatically. Existing IDs cannot be changed or deleted in the sheet.
 
-Adding an activity automatically initializes its matching cost row with zero actual and committed costs; edit those values afterward in **Cost ledger**. You can also append rows to an exported Excel workbook and import the selected worksheet. Changes remain browser-session-only until backed up.
+Adding an activity also creates its matching cost-ledger row (zero actual/committed costs); to enter expenses, open **Cost ledger** afterwards. Standalone cost-row creation is disabled because PEIMS currently requires one cost row per activity. You can also append rows to an exported Excel workbook and import the selected sheet through **Excel exchange**. All changes remain session-only until backed up.

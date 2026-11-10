@@ -20,6 +20,7 @@ from workflow import (WORKFLOW_COLUMNS, DATE_COLUMNS, PRIMARY_KEYS, STATUSES,
 from project_controls import critical_path, cost_forecast
 from sheet_engine import (SHEET_NAMES, EDITABLE_SHEETS, SHEET_LABELS, SHEET_KEYS,
                           project_sheet, apply_sheet, workbook_bytes, imported_sheet, safe_csv)
+from smart_entry import suggestions, new_record_id, SUGGESTED_FIELDS, validate_smart_inputs
 from bi_engine import SOURCE_SPECS, source_frame, build_analysis
 from experience import HOME_CHOICES, home_choice_counts, priority_actions, activity_status, render_welcome
 
@@ -826,6 +827,116 @@ def show_data_controls(base_data: dict[str, pd.DataFrame]):
 
 
 
+def _sheet_select_configs(core: dict, workflows: dict, sheet: str, project_id: str) -> dict:
+    """Offer reusable values in the grid, without restricting free-text mode."""
+    configs = {}
+    for field in SUGGESTED_FIELDS.get(sheet, ()):
+        opts = suggestions(core, workflows, sheet, project_id, field)
+        if opts:
+            configs[field] = st.column_config.SelectboxColumn(
+                field.replace('_', ' ').title(),
+                options=opts,
+                help='Previously entered values for this project. Switch to Free text for a new option.',
+            )
+    return configs
+
+
+def _entry_widget(field: str, sheet: str, project_id: str, core: dict, workflows: dict,
+                  snapshot: pd.Timestamp):
+    """Render a form control, preferring searchable suggestions for repeated fields."""
+    label = field.replace('_', ' ').title()
+    if field in SUGGESTED_FIELDS.get(sheet, ()):
+        opts = suggestions(core, workflows, sheet, project_id, field)
+        fixed = field in ('critical', 'priority', 'status')
+        defaults = {'status': {'actions':'Open', 'risks':'Open', 'procurement':'Ordered',
+                               'contractors':'Active', 'rfis':'Open', 'documents':'Draft'},
+                    'priority': {'actions':'Medium'},
+                    'critical': {'procurement':'No', 'rfis':'No'}}
+        chosen = defaults.get(field, {}).get(sheet)
+        idx = opts.index(chosen) if chosen in opts else None
+        return st.selectbox(label, opts, index=idx,
+                            accept_new_options=not fixed,
+                            placeholder='Choose a previous value or type a new one' if not fixed else 'Choose an option',
+                            help='Suggestions come only from this project. New values are saved with your record.'
+                                 if not fixed else 'Select a recognized value.')
+    if field in ('start_date', 'finish_date', 'due_date', 'expected_date',
+                 'opened_on', 'planned_finish', 'updated_on'):
+        shift = 14 if field in ('finish_date', 'expected_date', 'planned_finish') else (7 if field=='due_date' else 0)
+        return st.date_input(label, value=(snapshot + pd.Timedelta(days=shift)).date())
+    if field in ('weight', 'actual_pct', 'baseline_budget', 'po_value',
+                 'progress_pct', 'probability', 'impact'):
+        if field in ('probability','impact'):
+            return st.selectbox(label+' (1–5)', [1, 2, 3, 4, 5], index=None,
+                                placeholder='Assess this risk (required)')
+        upper = 100.0 if field in ('actual_pct','progress_pct') else None
+        return st.number_input(label, min_value=0.0, max_value=upper,
+                               value=1.0 if field == 'weight' else 0.0,
+                               step=1.0 if field in ('actual_pct','progress_pct') else 0.1)
+    if field == 'wbs':
+        frame = project_sheet(core, workflows, sheet, project_id)
+        values = pd.to_numeric(frame.get('wbs', pd.Series(dtype=float)), errors='coerce')
+        default = round(float(values.max()) + .1, 2) if values.notna().any() else 1.0
+        return st.number_input('WBS code', min_value=0.0, value=default, step=0.1, format='%.2f')
+    if field == 'received_date':
+        return None  # Optional until the order is marked Received.
+    if field in ('mitigation', 'notes', 'response_summary','scope'):
+        return st.text_area(label, height=80)
+    return st.text_input(label, placeholder='Enter '+label.lower())
+
+
+def show_smart_add(core: dict, workflows: dict, sheet: str, project_id: str) -> None:
+    """Accessible single-record entry with suggestions; saves through apply_sheet."""
+    if sheet not in SUGGESTED_FIELDS:
+        return
+    st.markdown('#### Add an entry with suggestions')
+    st.caption('Reusable values appear as searchable choices. You can also type a new owner, '
+               'discipline, supplier or category. All changes remain within this browser session.')
+    expected = WORKFLOW_COLUMNS.get(sheet, DATASET_COLUMNS.get(sheet))
+    pk = SHEET_KEYS[sheet]
+    project_rows = project_sheet(core, workflows, sheet, project_id)
+    snapshot = pd.Timestamp(core['projects'].loc[core['projects']['project_id'].astype(str).eq(project_id),
+                                                 'snapshot_date'].iloc[0]).normalize()
+    version = st.session_state.get('smart_add_version', 0)
+    with st.form(f'smart_add_{project_id}_{sheet}_{version}', clear_on_submit=False):
+        st.write('**New record details**')
+        record_id = st.text_input(pk.replace('_',' ').title(),
+                                  value=new_record_id(core, workflows, sheet, project_id),
+                                  help='Suggested unique ID; you can change it before saving.')
+        fields = [f for f in expected if f not in (pk,'project_id','received_date')]
+        output = {}
+        left, right = st.columns(2)
+        for i, field in enumerate(fields):
+            with (left if i%2 == 0 else right):
+                output[field] = _entry_widget(field, sheet, project_id, core, workflows, snapshot)
+        if sheet == 'procurement':
+            received_date = st.date_input('Received date (used only when status is Received)', value=snapshot.date())
+            output['received_date'] = received_date if output.get('status') == 'Received' else None
+        submit = st.form_submit_button('Add record to this project', type='primary')
+    if submit:
+        try:
+            row = validate_smart_inputs(sheet, {**output, pk:record_id.strip(), 'project_id':project_id})
+            created = pd.concat([project_rows, pd.DataFrame([row])], ignore_index=True)
+            new_core, new_workflows, events = apply_sheet(core, workflows, sheet, project_id, created)
+            if sheet in WORKFLOW_COLUMNS:
+                overrides = dict(st.session_state.get('workflow_overrides', {}))
+                overrides[sheet] = new_workflows[sheet]
+                st.session_state['workflow_overrides'] = overrides
+            else:
+                overrides = dict(st.session_state.get('overrides', {}))
+                overrides[sheet] = new_core[sheet]
+                if sheet=='activities':
+                    overrides['costs'] = new_core['costs']
+                st.session_state['overrides'] = overrides
+            history = list(st.session_state.get('change_history', []))
+            st.session_state['change_history'] = (history + events)[-250:]
+            st.session_state['smart_add_version'] = version+1
+            st.session_state['studio_edit_version'] = st.session_state.get('studio_edit_version', 0)+1
+            st.success(f'Created {record_id} in {sheet}.')
+            st.rerun()
+        except (ValueError, TypeError, KeyError) as exc:
+            st.error(f'New record was not saved: {exc}')
+
+
 def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result: dict) -> None:
     """Excel-inspired register workspace; BI-style analysis; vetted XLSX exchange.
 
@@ -844,16 +955,20 @@ def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result
 
     with tab_grid:
         st.markdown('#### Project worksheet')
-        st.caption('Edit cells or use **+ Add row** at the bottom of an editable worksheet. '
-                   'Every new row needs a unique ID and all required fields; PEIMS fills the project ID. '
-                   'Existing rows cannot be deleted or renamed.')
+        st.caption('Use the spreadsheet grid for bulk edits or **Add an entry with suggestions** below it. '
+                   'Existing rows cannot be deleted or renamed. New entries must pass validation.')
         if sheet in EDITABLE_SHEETS:
-            edit_key = f'studio_grid_{project_id}_{sheet}_{st.session_state.get("studio_edit_version", 0)}'
+            dropdowns = st.toggle('Suggest previously used values in grid', value=True,
+                                  key=f'studio_suggestions_{project_id}_{sheet}',
+                                  help='Switch off to type a brand-new category or owner directly in the grid.')
+            edit_key = f'studio_grid_{project_id}_{sheet}_{dropdowns}_{st.session_state.get("studio_edit_version", 0)}'
             with st.form(f'studio_form_{project_id}_{sheet}', border=False):
                 opts = {'use_container_width': True, 'hide_index': True,
                         'height': 420, 'num_rows': 'fixed' if sheet == 'costs' else 'dynamic',
                         'disabled': ['project_id'] if sheet != 'costs'
                         else ['project_id', SHEET_KEYS[sheet]]}
+                if dropdowns:
+                    opts['column_config'] = _sheet_select_configs(core, workflows, sheet, project_id)
                 editable = st.data_editor(sheet_frame, key=edit_key, **opts)
                 submit = st.form_submit_button('Validate & apply worksheet changes', type='primary')
             if sheet == 'costs':
@@ -887,6 +1002,9 @@ def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result
         else:
             st.dataframe(sheet_frame, use_container_width=True, hide_index=True, height=420)
             st.info('Historical progress snapshots are read-only in this release.')
+        if sheet in SUGGESTED_FIELDS:
+            with st.expander('＋ Add an entry with suggestions', expanded=False):
+                show_smart_add(core, workflows, sheet, project_id)
         if sheet == 'activities':
             with st.expander('Calculated columns (read-only)', expanded=False):
                 calc = result['activities'][['wbs', 'activity', 'planned_pct', 'actual_pct', 'variance_pp', 'earned_value']]

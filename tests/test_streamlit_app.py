@@ -117,3 +117,32 @@ def test_existing_session_is_migrated_to_new_home():
     assert not at.exception, [str(e.message) for e in at.exception]
     assert at.sidebar.radio[0].value == 'Home'
     assert any(b.label.startswith('Manage schedule') for b in at.button)
+
+
+def test_spreadsheet_suggested_values_and_quick_add_workflow():
+    """Catch Cloud-only form/selectbox regressions before publishing."""
+    at = app_test()
+    at.sidebar.radio[0].set_value('Spreadsheet studio').run()
+    assert not at.exception
+    sheet = [w for w in at.selectbox if w.label == 'Open worksheet']
+    assert len(sheet) == 1
+    sheet[0].set_value('actions').run()
+    assert not at.exception
+    assert any(w.label == 'Suggest previously used values in grid' for w in at.toggle)
+    owners = [w for w in at.selectbox if w.label == 'Owner']
+    assert len(owners) == 1
+    assert 'Project Engineer' in owners[0].options
+    assert any(w.label == 'Priority' for w in at.selectbox)
+    assert any(w.label == 'Source' for w in at.selectbox)
+    text_fields = [w for w in at.text_input if w.label == 'Action']
+    assert len(text_fields) == 1
+    # Form inputs are buffered until submit; don't rerun between individual edits.
+    text_fields[0].set_value('Inspect new electrical tie-in')
+    owners = [w for w in at.selectbox if w.label == 'Owner']
+    owners[0].set_value('Project Engineer')
+    submit = [w for w in at.button if w.label == 'Add record to this project']
+    assert len(submit) == 1
+    submit[0].click().run()
+    assert not at.exception, [str(e.message) for e in at.exception]
+    assert not at.error, [getattr(e, 'value', repr(e)) for e in at.error]
+    assert at.session_state.get('studio_edit_version', 0) >= 1
