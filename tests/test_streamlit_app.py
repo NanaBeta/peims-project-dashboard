@@ -106,3 +106,14 @@ def test_home_documents_and_actions_navigate():
     issues[0].click().run()
     assert not at.exception
     assert at.sidebar.radio[0].value == 'Risks & actions'
+
+
+def test_existing_session_is_migrated_to_new_home():
+    at = app_test()
+    at.sidebar.radio[0].set_value('Command centre').run()
+    assert not at.exception
+    at.session_state['_peims_nav_schema'] = 'older-release'
+    at.run()
+    assert not at.exception, [str(e.message) for e in at.exception]
+    assert at.sidebar.radio[0].value == 'Home'
+    assert any(b.label.startswith('Manage schedule') for b in at.button)

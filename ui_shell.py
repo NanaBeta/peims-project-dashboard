@@ -111,6 +111,30 @@ def render_css(compact: bool = False) -> str:
     [data-testid="stMetricLabel"] {font-weight:540;font-size:.82rem;}
     [data-testid="stMetricValue"] {letter-spacing:-.04em;font-weight:760;}
     [data-testid="stMetricDelta"] {font-size:.79rem;}
+    /* Command centre KPI cards: prevent cropped values when the sidebar is open.
+       Scope this grid to the overview only; other charts keep their own layout. */
+    .st-key-peims_overview_kpis [data-testid="stHorizontalBlock"] {
+      display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:1rem !important; align-items:stretch;
+    }
+    .st-key-peims_overview_kpis [data-testid="stColumn"] {
+      min-width:0 !important; width:100% !important; flex:none !important;
+    }
+    .st-key-peims_overview_kpis [data-testid="stMetric"] {height:100%;min-width:0;}
+    .st-key-peims_overview_kpis [data-testid="stMetricLabel"] p {
+      white-space:normal !important; overflow-wrap:anywhere;
+      line-height:1.4;
+    }
+    @media (max-width:1250px) {
+      .st-key-peims_overview_kpis [data-testid="stHorizontalBlock"] {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+    @media (max-width:510px) {
+      .st-key-peims_overview_kpis [data-testid="stHorizontalBlock"] {
+        grid-template-columns:minmax(0,1fr);
+      }
+    }
     [data-testid="stPlotlyChart"] {
       background:var(--peims-surface);border:1px solid var(--peims-border);
       border-radius:13px;padding:.4rem .55rem .15rem;
