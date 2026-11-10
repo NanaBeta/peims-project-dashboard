@@ -1,6 +1,8 @@
 # PEIMS native Streamlit theme presets: ⋮ → Settings → Appearance.
 [theme]
 base = "dark"
+# Gap below Streamlit toolbar/header. Streamlit adds the toolbar height itself.
+paddingTop = "1.4rem"
 font = "sans serif"
 showSidebarBorder = true
 

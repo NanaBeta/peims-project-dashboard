@@ -48,7 +48,7 @@ st.set_page_config(
     page_title="PEIMS | Project Engineering Intelligence",
     page_icon="⚒️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 
@@ -177,9 +177,9 @@ def show_home(result: dict, project: dict, workflows: dict) -> None:
                 '<p class="peims-home-sub">Choose one workspace. Detailed analysis is there when you need it.</p>',
                 unsafe_allow_html=True)
     counts = home_choice_counts(result, workflows)
-    for start in range(0, len(HOME_CHOICES), 3):
-        cols = st.columns(3, gap="medium")
-        for col, choice in zip(cols, HOME_CHOICES[start:start + 3]):
+    for start in range(0, len(HOME_CHOICES), 2):
+        cols = st.columns(2, gap="medium")
+        for col, choice in zip(cols, HOME_CHOICES[start:start + 2]):
             with col:
                 with st.container(border=True, key=f"home_card_{choice.target.lower().replace(' ', '_').replace('&', 'and')}"):
                     st.markdown(f'<div class="peims-card-icon" aria-hidden="true">{escape(choice.icon)}</div>',
