@@ -151,3 +151,7 @@ The public Streamlit demo has no enterprise token, database or organization acco
 ## v0.7 — Tasks & work management
 
 Open **Home → Manage tasks**, or **Tasks & work management** in the sidebar. The same session task records appear in a Kanban-style Board, List, Timeline, Calendar, Dependencies & CPM, Workload and Time & rules. You can create a task, subtask or milestone, edit statuses and owners, add finish-to-start links, enter resource capacity, log hours, and set simple status-to-priority rules. Use the **Backup / restore project work records** section to export session edits in a project-scoped ZIP archive. The work-management timeline does not silently modify the separate approved activity baseline Gantt or cost ledger. This remains a fictional, session-only demo. Details: [release notes](RELEASE_NOTES_v0.7.md) and [15-feature roadmap](FEATURE_ROADMAP_15.md).
+
+## v0.8.2 — Enterprise staging deployment kit (not a deployed environment)
+
+The repository now provides a manually triggered Render staging Blueprint (`render.yaml`), a guarded `enterprise.staging_runtime` entrypoint, and a remote smoke checker. **No hosting account, PostgreSQL instance or OIDC tenant is created by merging code into GitHub.** The public Streamlit demo remains session-only. See [STAGING_DEPLOY_RENDER.md](STAGING_DEPLOY_RENDER.md) and [v0.8.2 release notes](RELEASE_NOTES_v0.8.2.md) before provisioning any paid staging resources.
