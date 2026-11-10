@@ -189,23 +189,9 @@ def test_work_management_views_and_project_scoped_creation():
     """AppTest verifies that each new task view renders through Streamlit."""
     at = app_test()
     at.sidebar.radio[0].set_value('Work management').run()
-    at.run()  # let AppTest settle a navigation-triggered rerun
     assert not at.exception, [str(x.message) for x in at.exception]
     selector = [x for x in at.radio if x.label == 'Work view']
-    print("PEIMS07_RENDER_DEBUG", "PAGE", at.sidebar.radio[0].value,
-          "RADIOS", [x.label for x in at.radio],
-          "METRICS", [(x.label,x.value) for x in at.metric],
-          "MARKDOWNS", [str(x.value)[:180] for x in at.markdown][-18:],
-          "ERRORS", [str(x.message) for x in at.error],
-          "EXCEPTIONS", [str(x.message) for x in at.exception])
-    assert len(selector) == 1, {
-        'page': at.sidebar.radio[0].value,
-        'main_radio_labels': [x.label for x in at.radio],
-        'metrics': [(x.label,x.value) for x in at.metric][:8],
-        'main_markdowns': [str(x.value)[:100] for x in at.markdown][-8:],
-        'errors': [str(x.message) for x in at.error],
-        'exceptions': [str(x.message) for x in at.exception],
-    }
+    assert len(selector) == 1
     for target in ('List', 'Timeline', 'Calendar', 'Dependencies & CPM', 'Workload', 'Time & rules', 'Board'):
         selector = [x for x in at.radio if x.label == 'Work view'][0]
         selector.set_value(target).run()
@@ -221,7 +207,6 @@ def test_work_management_appears_on_home():
     cards = [x for x in at.button if x.label.startswith('Manage tasks')]
     assert len(cards) == 1
     cards[0].click().run()
-    at.run()  # settle navigation callback before checking page widgets
     assert not at.exception
     assert at.sidebar.radio[0].value == 'Work management'
     assert any(x.label == 'Work view' for x in at.radio)
