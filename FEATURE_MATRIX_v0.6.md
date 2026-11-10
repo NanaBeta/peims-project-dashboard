@@ -47,7 +47,13 @@ Every editable worksheet is a *view over the existing project records*, not its 
 - P6 baseline concepts: https://primavera.oraclecloud.com/help/en/user/89344_1.htm
 - Power BI embedded analytics licensing and security: https://learn.microsoft.com/en-us/power-bi/guidance/powerbi-implementation-planning-usage-scenario-embed-for-your-organization
 
+### v0.6.1 update — row creation
 
-### v0.6.1 — row creation support
+The Spreadsheet Studio now supports **validated creation of new activity, procurement, risk, action, contractor, RFI, and document records** using the grid or Excel imports. New activity records automatically initialize their linked cost row. The system is still a structured project register, **not** a free-form Excel formula engine or multiuser workbook. Existing record deletion is deliberately unavailable from the spreadsheet grid.
 
-The Worksheet Grid now supports validated creation of activities, procurement orders, risks, actions, contractors, RFIs and document metadata, as well as newly added records imported from Excel. Adding an activity automatically creates its required cost-ledger entry with zero expenditures. This is a structured project register, not a general-purpose formula engine; deletion of existing records and independent financial transactions are not supported in this grid.
+
+## v0.6.3 organization master data controls
+
+- **Implemented in source:** separate organization tenant and role memberships; admin approval of reusable labels; version-checked project-level opt-in; filtered shared suggestions; project and organization audits; backwards-compatible migration. No automatic sharing of data across projects or organizations.
+- **Still project-only in live Streamlit:** the standalone public demo cannot access the enterprise directory without a verified organizational login and a deployed backend.
+- **Later integration:** use an authenticated server-side API client to merge a project's existing suggestions with *only* `approved_values` returned by the authorization-checked endpoint. Keep local values first, approved organization values second, and generic presets last; never import private cost rates or supplier agreements.

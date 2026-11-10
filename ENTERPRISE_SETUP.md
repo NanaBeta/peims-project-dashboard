@@ -67,3 +67,47 @@ Mutation requests use strongly validated JSON bodies; most updates require `expe
 Complete `STAGING_ACCEPTANCE.md` with two signed-in test accounts, a disposable PostgreSQL instance, token expiry/revocation exercises, post-restart persistence checks, RBAC and cross-project isolation, concurrent writes, migration/rollback drills, restore-from-backup, TLS validation and security reviews.
 
 Streamlit native OIDC sign-in does **not** automatically grant an API access token with the right audience. Use an approved server-side OAuth code exchange and secure session storage in a future frontend; never prompt users to paste bearer tokens in a public web interface.
+
+## 7. Organization directory — v0.6.3 (backend only)
+
+**This code is not connected to the public Streamlit demonstration.** Existing project-specific suggestions remain the only source of values in that app. An approved, authenticated enterprise frontend must later call these API endpoints with its own server-side OIDC access token.
+
+### Isolation and opt-in policy
+
+1. Organization provisioning is disabled by default. Configure `PEIMS_ORG_BOOTSTRAP_SUBS` with a **small, trusted, server-side** comma-separated list of verified OIDC `sub` claims to authorize `POST /v1/organizations`. Do not set this in a public Streamlit deployment, and do not infer OIDC subjects from email addresses.
+2. Every new organization is isolated and the creator becomes its first admin. Admins may grant/revoke `member` and `admin` organization memberships. Project membership remains separate.
+3. Every existing project remains **unlinked**, with `directory_enabled=false`. Only an existing **project manager who is also an admin of the destination organization** can link a project. Cross-organization transfers are blocked by default; they require a future explicit, audited administrative process.
+4. A project manager who also belongs to the organization may enable the directory via version-checked settings. An organization's values are never available merely because two projects have similar labels.
+5. Members may *propose* directory values (pending). Only organization admins can approve them. **Unreviewed, rejected or archived values are never returned** as shared suggestions. No project entries are automatically promoted.
+6. Shared suggestions require valid OIDC authentication, *project membership*, *organization membership*, project opt-in, and organization/kind/status filters. The endpoint returns only approved labels (no private contract terms, rates, member details or project records).
+7. Managers can switch the project back to project-only mode immediately. Organization membership revocation immediately removes access to shared suggestions on the next request.
+
+### Routes (all `/v1/...` routes require a verified API-audience bearer token)
+
+| Route | Authorization | Purpose |
+| --- | --- | --- |
+| `POST /organizations` | trusted `PEIMS_ORG_BOOTSTRAP_SUBS` | Create isolated organization and first admin |
+| `GET /organizations` | authenticated | List only organizations the principal belongs to |
+| `GET, POST /organizations/{org_id}/members` | organization admin | Review/provision scoped members |
+| `DELETE /organizations/{org_id}/members/{sub}` | organization admin, cannot self-revoke | Revoke organization access |
+| `POST /projects/{project_id}/organization-link` | project manager **and** destination organization admin | Link an unlinked project, initially disabled |
+| `GET /projects/{project_id}/directory-settings` | project member | Inspect opt-in status and optimistic version |
+| `PATCH /projects/{project_id}/directory-settings` | project manager; org member if enabling | Enable/disable with `expected_version` |
+| `POST /organizations/{org_id}/directory` | organization member | Propose a reusable value, initial status pending |
+| `GET /organizations/{org_id}/directory?status=pending` | organization admin | Review queue (or selected status) |
+| `PATCH /organizations/{org_id}/directory/{entry_id}` | organization admin | Approve/reject/archive with `expected_version` |
+| `GET /projects/{project_id}/directory-suggestions?kind=supplier` | project & organization member, after opt-in | Approved suggestions; project-only fallback when off |
+| `GET /organizations/{org_id}/directory-audit` | organization admin | Last 100 org audit events |
+
+Directory kinds: `contractor`, `supplier`, `discipline`, `person`, `category`, `document_type`. These are *approved lookup labels*, **not** supplier accounts, signed contracts, verified personnel identities, or company-wide visibility into project registers.
+
+### Illustrative workflow
+
+1. Configure bootstrap subjects; run Alembic migration `0003_organization_directory` on isolated, backed-up PostgreSQL staging after rehearsing an upgrade and rollback.
+2. Org-admin creates the organization, provisions OIDC-subject members and manually proposes/approves safe company directory entries.
+3. A project manager who is also org admin links the project by the organization UUID. Link is initially inactive.
+4. Project manager **explicitly enables** organization suggestions with a version-checked request.
+5. An authenticated project+org member retrieves approved values by `kind`; the future client merges them with the existing local/project suggestions. If not opted in, the result is `project_only` with no organization values.
+6. Org admin archives an obsolete entry or revokes access; next request reflects the change.
+
+**Not yet available:** database hosting, actual organization provisioning, authenticated Streamlit-to-API integration, organization administration UI, invitations and identity-lifecycle orchestration, PostgreSQL integration testing, rate limiting, CSRF/session policy for a browser client, or a business-verified organization onboarding workflow. Implement and test these before processing any confidential customer data.

@@ -958,6 +958,7 @@ def show_spreadsheet_studio(core: dict, workflows: dict, project_id: str, result
         st.caption('Use the spreadsheet grid for bulk edits or **Add an entry with suggestions** below it. '
                    'Existing rows cannot be deleted or renamed. New entries must pass validation.')
         if sheet in EDITABLE_SHEETS:
+            st.caption('Suggestion source: this project only. Approved organization-wide entries require the authenticated enterprise service, which is not connected to this demo.')
             dropdowns = st.toggle('Suggest previously used values in grid', value=True,
                                   key=f'studio_suggestions_{project_id}_{sheet}',
                                   help='Switch off to type a brand-new category or owner directly in the grid.')
