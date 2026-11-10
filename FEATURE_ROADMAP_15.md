@@ -17,3 +17,8 @@
 | 13 | Mobile | **Partial** | Responsive Streamlit, not offline native mobile. |
 | 14 | Guest/client access | **Pending** | Project-scoped external identity and access approvals. |
 | 15 | AI-assisted insights | **Pending** | Rule-based flags are **not** AI predictions. Historical, consented data and evaluation needed. |
+
+
+### v0.8.1 progress
+
+A separate authenticated enterprise frontend has been implemented: project selection, persistent task CRUD, board/list/timeline/calendar views, comments, time records and dependency links. The new same-origin OIDC session layer uses the existing role-aware API logic and audit trail. **Code-only release:** external OIDC provider setup, PostgreSQL deployment, real-time notification, organization directory UI, third-party integrations, and production security accreditation are still pending.

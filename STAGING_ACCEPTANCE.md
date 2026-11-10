@@ -39,3 +39,14 @@ The public sample-data Streamlit site is **not** a safe place for company data. 
 - [ ] Check task assignee membership integrity, revocation/reassignment, cross-project composite FKs, 24-hour per-project time caps and audit consistency on transaction rollback.
 - [ ] Validate time-log/comment retention, audit export policy, approved content rendering, request-size limits, monitoring and backup restore from a separate instance.
 - [ ] Do not claim real-time collaboration: add authenticated frontend, notifications and tenant RBAC/RLS review first.
+
+
+## v0.8.1 enterprise console release gates
+
+- [ ] Verify the separate confidential OIDC client, exact callback URI, state/PKCE/nonce, RS256 issuer/audience/expiry, JWKS rotation, invalid-token handling, and trusted `sub` provisioning with two real test accounts.
+- [ ] Verify encrypted **HTTPS** transport, cookies (`__Host-`, Secure, HttpOnly, SameSite), HSTS at the edge, reverse proxy trust and secure session key storage / rotation.
+- [ ] Rehearse `0005_console_sessions` migration and backup restoration on isolated managed **PostgreSQL**; confirm existing tasks persist and migration doesn't touch the public Streamlit demo.
+- [ ] Verify session expiry, logout invalidation, replay/missing-cookie rejection, CSRF/origin checks, and disabled/revoked organizational identities with defined signout/revocation policy.
+- [ ] Check member permissions, cross-project 404 isolation, edits with 409 optimistic conflict, author-attributed comments/time logs, audit retention, rate limits and application firewall rules.
+- [ ] Run multi-device/mobile accessibility, sensitive-data logging inspection, retained session cleanup, SSO failure recovery, and user-acceptance tests.
+- [ ] Obtain organizational security approval before processing confidential customer information. No SOC 2/GDPR certification is implied by this source release.

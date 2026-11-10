@@ -18,7 +18,7 @@ from enterprise.work_management import router as work_management_router
 from sqlalchemy import text
 from enterprise.schemas import ProjectOut, ActivityOut, ActivityCreate, ProgressUpdate, RFIOut, RFICreate, RFIUpdate, CostOut, CostCreate, CostUpdate
 
-app = FastAPI(title='PEIMS enterprise API (staging foundation)', version='0.8.0', docs_url=None, redoc_url=None)
+app = FastAPI(title='PEIMS enterprise API (staging foundation)', version='0.8.1', docs_url=None, redoc_url=None)
 
 @app.get('/healthz')
 def healthz():
@@ -145,3 +145,25 @@ app.include_router(workspace_router)
 app.include_router(directory_router)
 
 app.include_router(work_management_router)
+
+# Enterprise console: same-origin browser session and API façade, never mounted
+# on the public Streamlit demonstration.
+from enterprise.console import router as console_router, assets as console_assets
+app.include_router(console_router)
+app.mount('/console/assets', console_assets, name='enterprise-console-assets')
+
+@app.middleware('http')
+async def console_security_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith('/console'):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Referrer-Policy'] = 'no-referrer'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'none'; base-uri 'none'; form-action 'self'; "
+            "script-src 'self'; style-src 'self'; connect-src 'self'; "
+            "img-src 'self' data:; font-src 'self'; frame-ancestors 'none'"
+        )
+        if request.url.path.startswith('/console/api') or request.url.path.startswith('/console/callback'):
+            response.headers['Cache-Control'] = 'no-store'
+    return response

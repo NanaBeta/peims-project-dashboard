@@ -252,3 +252,13 @@ class WorkComment(Base):
         ForeignKeyConstraint(['project_id','work_item_id'],['work_items.project_id','work_items.id'], ondelete='RESTRICT',name='fk_work_comment_item'),
         Index('ix_work_comment_project_item','project_id','work_item_id','created_at'),
     )
+
+
+class BrowserSession(Base):
+    """Opaque browser session hash only; no OAuth tokens or credentials in DB."""
+    __tablename__ = 'browser_sessions'
+    sid_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    principal_sub: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    __table_args__ = (Index('ix_browser_sessions_expiry','expires_at'),)
