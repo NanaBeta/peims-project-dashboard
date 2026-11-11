@@ -63,6 +63,8 @@ jobs:
         run: python -m alembic upgrade head
       - name: Verify PostgreSQL TLS, persistence, constraints and API permissions
         run: python -m scripts.postgres_staging_acceptance
+      - name: Verify free workspace PostgreSQL adapter against disposable database
+        run: python -m scripts.free_postgres_acceptance
       - name: Stop disposable PostgreSQL
         if: always()
         run: docker rm -f peims-ci-postgres || true
